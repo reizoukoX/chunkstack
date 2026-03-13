@@ -1776,11 +1776,6 @@
       console.log('[AI-FB] getAiFeedback called. sentence=', JSON.stringify(sentence));
 
       if (!el || !textEl) { console.warn('[AI-FB] DOM elements not found'); return; }
-      if (!CLAUDE_API_KEY || CLAUDE_API_KEY === 'YOUR_CLAUDE_API_KEY_HERE') {
-        console.warn('[AI-FB] APIキーが未設定');
-        el.style.display = 'none'; return;
-      }
-
       el.style.display = 'block';
       textEl.textContent = '…フィードバック取得中';
       textEl.style.opacity = '0.5';
@@ -1825,20 +1820,13 @@
         '・改行以外の装飾なしの平文で答える',
       ].join('\n');
 
-      const url = 'https://api.anthropic.com/v1/messages';
-      console.log('[AI-FB] fetching Claude API...');
-      console.log('[AI-FB] prompt preview:', prompt.slice(0, 200));
+      console.log('[AI-FB] fetching via proxy...');
       const t0 = Date.now();
 
       try {
-        const res = await fetch(url, {
+        const res = await fetch('/.netlify/functions/claude', {
           method: 'POST',
-          headers: {
-            'x-api-key': CLAUDE_API_KEY,
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-access': 'true',
-            'content-type': 'application/json'
-          },
+          headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             model: 'claude-haiku-4-5',
             max_tokens: 700,
