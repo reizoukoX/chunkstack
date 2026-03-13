@@ -1423,6 +1423,7 @@
     function showScreen(id) {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       g('screen-' + id).classList.add('active');
+      window.scrollTo(0, 0); // reset scroll on Android / mobile
     }
     function goHome() { speechSynthesis.cancel(); killRec(); showScreen('home'); refreshHome(); }
 
@@ -1676,22 +1677,29 @@
     function advance() {
       if (S.showAnswer) return;
       const now = Date.now();
-      if (now - lastAdvanceAt < 700) return; // debounce: drop any duplicate call within 700ms
+      if (now - lastAdvanceAt < 700) return;
       lastAdvanceAt = now;
+      clearTimeout(advanceTimer); advanceTimer = null;
       const q = cq();
-      // 発話を記録
       if (S.transcript) S.transcriptHistory[S.chunkIdx - 1] = S.transcript;
       if (S.chunkIdx < q.chunks.length) {
+        // ── 完全切り離し: 旧 rec を殺してからチャンク遷移 ──
+        recBlocked = true;
+        const old = rec; rec = null;
+        try { if (old) old.abort(); } catch (_) {}
         S.chunkIdx++; S.transcript = ''; S.interim = '';
-        S.micState = 'idle'; // reset mic icon between chunks
+        S.micState = 'idle';
         renderChunks(); renderDots(); renderVoiceUI(); updateManualHint();
+        // 新チャンク用に rec を新規起動
+        setTimeout(() => {
+          recBlocked = false;
+          if (recWanted && !S.showAnswer) startRec();
+        }, 350);
       } else {
         S.showAnswer = true;
         const _aiFbSentence = getAssembledSentence(q);
         renderPractice();
-        // Phase 2: Auto-play assembled sentence (uses user's ok-scored chunks where available)
         setTimeout(() => playNativeAudio(_aiFbSentence), 600);
-        // Phase 3: Async AI feedback (parallel with TTS)
         getAiFeedback(_aiFbSentence, q);
       }
     }
@@ -2101,6 +2109,8 @@
     /* ── Voice ── */
     let rec = null;
     let recWanted = false;
+    let advanceTimer = null;  // pending auto-advance timeout
+    let recBlocked = false;   // true during chunk transition (prevents audio bleed)
 
     function startRec() {
       if (!SpeechRec || S.micPermissionError) return;
@@ -2111,8 +2121,8 @@
 
       r.onstart = () => { if (rec === r && recWanted) setMicState('listening'); };
       r.onresult = (e) => {
-        // PTT guard: ignore results when user is not holding the button
         if (!recWanted) return;
+        if (recBlocked) return; // チャンク遷移中は無視
         if (rec !== r || S.mode !== 'voice' || S.showAnswer || S.micState === 'paused') return;
         if (!g('screen-practice').classList.contains('active')) return;
         let interim = '', final = '';
@@ -2122,13 +2132,15 @@
         }
         if (interim) { S.interim = interim; renderVoiceUI(); }
         if (final) {
-          S.transcript = final; S.interim = ''; setMicState('heard');
-          setTimeout(() => {
+          // Android は長い発話を複数の isFinal に分割して送る → 結合して貯める
+          S.transcript = (S.transcript ? S.transcript.trim() + ' ' : '') + final.trim();
+          S.interim = ''; setMicState('heard');
+          // 新しい final が来るたびにタイマーをリセット → 本当に無音になってから advance
+          clearTimeout(advanceTimer);
+          advanceTimer = setTimeout(() => {
+            advanceTimer = null;
             advance();
-            // In PTT, we don't auto-resume to 'listening' state on advance
-            if (!S.showAnswer && recWanted) setMicState('listening');
-            else if (!S.showAnswer) setMicState('idle');
-          }, 480);
+          }, 750);
         }
       };
       r.onerror = (e) => {
@@ -2145,11 +2157,10 @@
       };
       r.onend = () => {
         if (rec === r) rec = null;
-        // loop guard: don't restart too quickly if we haven't successfully started
         const now = Date.now();
         const tooFast = (now - (S.lastStartAttempt || 0)) < 1000;
-        
-        // In PTT, we only restart if the user is STILL holding the button
+        // recBlocked=true の間は advance() 側が再起動を管理するので触らない
+        if (recBlocked) return;
         if (recWanted && S.mode === 'voice' && !S.micPermissionError && !tooFast) {
           setTimeout(startRec, 200);
         } else if (!S.micPermissionError) {
