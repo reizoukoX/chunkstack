@@ -1,0 +1,2646 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>ChunkStack</title>
+  <!-- Data pool (edit data.js to customize questions) -->
+  <script src="data.js"></script>
+  <!-- Transformers.js for Whisper AI -->
+  <script type="module">
+    import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+    window.pipeline = pipeline;
+    window.env = env;
+  </script>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overscroll-behavior: none
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      background: #f5f4ef;
+      color: #2c2c2c;
+      min-height: 100dvh
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+      transition: all .15s
+    }
+
+    button:active {
+      transform: scale(.97)
+    }
+
+    .glass {
+      background: rgba(255,255,255,.82);
+      border: 1px solid #e8e4dc
+    }
+
+    .glass2 {
+      background: #fff;
+      border: 1px solid #dddad4
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(18px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0
+      }
+
+      to {
+        opacity: 1
+      }
+    }
+
+    @keyframes popIn {
+      0% {
+        transform: scale(.93)
+      }
+
+      55% {
+        transform: scale(1.05)
+      }
+
+      100% {
+        transform: scale(1)
+      }
+    }
+
+    @keyframes heard {
+      0% {
+        transform: scale(1)
+      }
+
+      35% {
+        transform: scale(1.1)
+      }
+
+      100% {
+        transform: scale(1)
+      }
+    }
+
+    @keyframes pulse1 {
+      0% {
+        transform: scale(1);
+        opacity: .55
+      }
+
+      100% {
+        transform: scale(1.75);
+        opacity: 0
+      }
+    }
+
+    @keyframes pulse2 {
+      0% {
+        transform: scale(1);
+        opacity: .35
+      }
+
+      100% {
+        transform: scale(2.3);
+        opacity: 0
+      }
+    }
+
+    @keyframes wave {
+
+      0%,
+      100% {
+        height: 5px
+      }
+
+      50% {
+        height: 22px
+      }
+    }
+
+    @keyframes lastPulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, .5)
+      }
+
+      70% {
+        box-shadow: 0 0 0 8px rgba(239, 68, 68, 0)
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0)
+      }
+    }
+
+    .anim-slide {
+      animation: slideUp .35s ease-out
+    }
+
+    .anim-fade {
+      animation: fadeIn .4s ease-out
+    }
+
+    .anim-pop {
+      animation: popIn .35s ease-out
+    }
+
+    .anim-heard {
+      animation: heard .4s ease-out
+    }
+
+    .mic-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 88px;
+      height: 88px;
+      cursor: pointer;
+      margin-bottom: 24px;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    .mic-ring {
+      position: absolute;
+      border-radius: 50%;
+      width: 72px;
+      height: 72px;
+      pointer-events: none
+    }
+
+    .mic-ring.r1 {
+      animation: pulse1 1.5s ease-out infinite
+    }
+
+    .mic-ring.r2 {
+      animation: pulse2 1.5s ease-out .4s infinite
+    }
+
+    .mic-btn {
+      position: relative;
+      z-index: 1;
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      transition: all .3s
+    }
+
+    .wave-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      height: 28px;
+      margin-top: 6px
+    }
+
+    .wbar {
+      width: 4px;
+      border-radius: 4px;
+      background: #618f1e
+    }
+
+    .wbar:nth-child(1) {
+      animation: wave .9s ease-in-out infinite 0s
+    }
+
+    .wbar:nth-child(2) {
+      animation: wave .9s ease-in-out infinite .18s
+    }
+
+    .wbar:nth-child(3) {
+      animation: wave .9s ease-in-out infinite .36s
+    }
+
+    .wbar:nth-child(4) {
+      animation: wave .9s ease-in-out infinite .18s
+    }
+
+    .wbar:nth-child(5) {
+      animation: wave .9s ease-in-out infinite 0s
+    }
+
+    /* Phase 2: English Prompts */
+    .prompt-type {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: rgba(44,44,44,.4);
+      margin-bottom: 4px;
+      font-weight: 700;
+    }
+    .prompt-main {
+      font-size: 20px;
+      font-weight: 700;
+      color: #2c2c2c;
+      line-height: 1.2;
+    }
+    .chunk-hint-badge.wh, .score-hint-badge.wh { background: #618f1e; border: 1px solid rgba(255,255,255,0.2); color: #fff; }
+    .chunk-hint-badge.vocab, .score-hint-badge.vocab { background: #c8b850; border: 1px solid rgba(255,255,255,0.2); color: #3a2c00; }
+    .chunk-said { font-size: 12px; color: rgba(40,85,8,.85); margin-top: 6px; font-style: italic; }
+    .chunk-model-hint { font-size: 11px; color: rgba(44,44,44,.35); margin-top: 8px; padding: 5px 10px; border: 1px dashed rgba(44,44,44,.15); border-radius: 3px; letter-spacing: .02em; }
+    .core-en { font-size: 18px; font-weight: 600; color: #618f1e; margin-top: 4px; }
+    .last-chunk-tag {
+      font-size: 9px;
+      padding: 1px 5px;
+      background: #ef4444;
+      border-radius: 4px;
+      margin-left: 6px;
+      font-weight: 800;
+      animation: popIn 0.5s ease-out;
+    }
+
+    #app {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column
+    }
+
+    .screen {
+      display: none;
+      flex: 1;
+      flex-direction: column
+    }
+
+    .screen.active {
+      display: flex
+    }
+
+    .home-inner {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 20px;
+      max-width: 440px;
+      margin: 0 auto;
+      width: 100%
+    }
+
+    .logo-lockup {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px
+    }
+    .logo-lockup svg { flex-shrink: 0 }
+    .app-title {
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: -.03em;
+      margin: 0 0 4px;
+      text-align: left;
+      font-feature-settings: "ss01"
+    }
+    .app-title span { color: #618f1e }
+
+    .app-sub {
+      font-size: 12px;
+      color: rgba(44,44,44,.45);
+      margin: 0;
+      text-align: left;
+      letter-spacing: .01em
+    }
+
+    .stats-row-mini {
+      margin-top: 14px;
+      font-size: 11px;
+      color: rgba(44,44,44,.38);
+      text-align: center;
+      letter-spacing: .02em;
+      width: 100%
+    }
+
+    .section-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-weight: 700;
+      color: #618f1e;
+      margin-bottom: 8px
+    }
+
+    .filter-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      width: 100%
+    }
+
+    .filter-btn {
+      flex: 1;
+      padding: 10px 4px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #2e4c0c;
+      background: rgba(97,143,30,.08)
+    }
+
+    .start-btn {
+      width: 100%;
+      padding: 16px;
+      border-radius: 10px;
+      font-size: 20px;
+      font-weight: 900;
+      color: #fff;
+      margin-top: 4px;
+      background: linear-gradient(135deg, #618f1e, #426010);
+      box-shadow: 0 6px 24px rgba(97,143,30,.28)
+    }
+
+    .mode-hint {
+      font-size: 12px;
+      color: #618f1e;
+      text-align: center;
+      margin-top: 8px;
+      min-height: 18px
+    }
+
+    .prac-header {
+      padding: 16px 16px 8px
+    }
+
+    .prac-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px
+    }
+
+    .end-btn {
+      font-size: 13px;
+      font-weight: 700;
+      color: #618f1e;
+      padding: 8px 14px;
+      border-radius: 6px
+    }
+
+    .level-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 12px;
+      border-radius: 10px;
+      color: #fff
+    }
+
+    .prog-counter {
+      font-size: 13px;
+      font-family: monospace;
+      color: rgba(44,44,44,.5)
+    }
+
+    .prog-bar-wrap {
+      height: 3px;
+      border-radius: 4px;
+      background: rgba(44,44,44,.08);
+      overflow: hidden
+    }
+
+    .prog-bar {
+      height: 100%;
+      border-radius: 4px;
+      background: #618f1e;
+      transition: width .5s
+    }
+
+    .grammar-tag {
+      text-align: center;
+      margin: 8px 0 4px
+    }
+
+    .grammar-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 12px;
+      border-radius: 10px;
+      background: rgba(97,143,30,.12);
+      color: #426010
+    }
+
+    .prac-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 20px 24px;
+      max-width: 480px;
+      margin: 0 auto;
+      width: 100%;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch
+    }
+
+    .prac-body-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      width: 100%;
+      min-height: 100%
+    }
+
+    .chunks-list {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 16px
+    }
+
+    .chunk-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      margin-left: 4px
+    }
+
+    .chunk-plus {
+      color: #618f1e;
+      font-size: 18px;
+      font-weight: 900
+    }
+
+    .chunk-hint-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 10px;
+      background: rgba(97,143,30,.12);
+      color: #426010
+    }
+
+    .chunk-card {
+      border-radius: 10px;
+      padding: 16px 20px
+    }
+
+    .chunk-card.core {
+      background: #fff;
+      border: 1px solid #dddad4
+    }
+
+    .chunk-card.extra {
+      background: rgba(97,143,30,.05);
+      border: 1px solid rgba(97,143,30,.18);
+      margin-left: 16px
+    }
+
+    .core-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      color: #618f1e;
+      margin-bottom: 4px
+    }
+
+    .chunk-ja {
+      font-weight: 600;
+      line-height: 1.4;
+      margin: 0;
+      letter-spacing: -.01em
+    }
+
+    .last-chunk-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 12px;
+      border-radius: 10px;
+      background: rgba(239, 68, 68, .25);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, .3);
+      animation: popIn .35s ease-out, lastPulse 1.5s ease-out 0s 3
+    }
+
+    .voice-zone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 28px;
+      width: 100%
+    }
+
+    .transcript-area {
+      min-height: 40px;
+      text-align: center;
+      margin-bottom: 16px;
+      width: 100%;
+      padding: 0 16px
+    }
+
+    .transcript-pill {
+      display: inline-block;
+      border-radius: 8px;
+      padding: 8px 16px
+    }
+
+    .interim-text {
+      font-size: 13px;
+      font-style: italic;
+      color: rgba(97,143,30,.75)
+    }
+
+    .heard-text {
+      font-size: 13px;
+      font-weight: 600;
+      color: #3a5c28
+    }
+
+    .listen-hint {
+      font-size: 12px;
+      color: rgba(44,44,44,.35)
+    }
+
+    .mic-label-text {
+      font-size: 12px;
+      font-weight: 500;
+      margin-top: 6px;
+      color: rgba(44,44,44,.4);
+      text-align: center
+    }
+
+    .skip-hint {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 14px;
+      font-size: 11px;
+      color: rgba(44,44,44,.3)
+    }
+
+    .key-badge {
+      font-size: 10px;
+      font-family: monospace;
+      padding: 2px 7px;
+      border-radius: 5px;
+      background: rgba(44,44,44,.07)
+    }
+
+    .manual-hint {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 32px;
+      font-size: 13px;
+      color: rgba(44,44,44,.4)
+    }
+
+    .dots-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 18px
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      transition: background .3s
+    }
+
+    .answer-zone {
+      width: 100%;
+      animation: fadeIn .4s ease-out
+    }
+
+    .answer-label {
+      text-align: center;
+      margin-bottom: 14px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: #618f1e
+    }
+
+    .answer-card {
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 14px;
+      border: 1px solid rgba(44,44,44,.1);
+      text-align: center;
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.55;
+      color: #618f1e
+    }
+
+    .answer-slash {
+      color: #c8b850;
+      font-weight: 900
+    }
+
+    .ja-ref {
+      border-radius: 7px;
+      padding: 10px 16px;
+      margin-bottom: 16px;
+      text-align: center;
+      font-size: 13px;
+      color: #618f1e
+    }
+
+    /* ── 採点セクション ── */
+    .score-section {
+      width: 100%;
+      margin-bottom: 16px
+    }
+
+    .score-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: #618f1e;
+      margin-bottom: 10px;
+      text-align: center
+    }
+
+    .score-row {
+      border-radius: 7px;
+      padding: 10px 14px;
+      margin-bottom: 8px
+    }
+
+    .score-row.ok {
+      background: rgba(16, 185, 129, .12);
+      border: 1px solid rgba(16, 185, 129, .2)
+    }
+
+    .score-row.ng {
+      background: rgba(239, 68, 68, .10);
+      border: 1px solid rgba(239, 68, 68, .2)
+    }
+
+    .score-row.skip {
+      background: rgba(44,44,44,.03);
+      border: 1px solid rgba(44,44,44,.09)
+    }
+
+    .score-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px
+    }
+
+    .score-hint-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 5px;
+      background: rgba(97,143,30,.12);
+      color: #426010
+    }
+
+    .score-badge-ok {
+      font-size: 11px;
+      font-weight: 700;
+      color: #1f6e4a
+    }
+
+    .score-badge-ng {
+      font-size: 11px;
+      font-weight: 700;
+      color: #a82020
+    }
+
+    .score-badge-skip {
+      font-size: 11px;
+      color: rgba(44,44,44,.3)
+    }
+
+    .score-user {
+      font-size: 12px;
+      color: rgba(44,44,44,.6);
+      font-style: italic;
+      margin-bottom: 3px
+    }
+
+    .score-correction {
+      font-size: 12px;
+      color: #9a7800;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tts-btn {
+      background: rgba(200,184,80,.14);
+      border: 1px solid rgba(200,184,80,.32);
+      color: #9a7800;
+      border-radius: 6px;
+      padding: 1px 7px;
+      font-size: 13px;
+      line-height: 1.6;
+      flex-shrink: 0;
+    }
+    .tts-btn:hover { background: rgba(200,184,80,.26); }
+
+    /* ── AI Feedback ── */
+    #ai-feedback {
+      margin-top: 14px;
+      padding: 14px 16px;
+      background: rgba(255, 255, 255, 0.93);
+      border: 1px solid rgba(97,143,30,.2);
+      border-radius: 7px;
+      font-size: 13px;
+      line-height: 1.7;
+      color: #2d1b69;
+      display: none;
+    }
+    #ai-feedback .ai-fb-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      color: rgba(65,110,15,.85);
+      margin-bottom: 8px;
+    }
+    #ai-feedback p {
+      margin: 0 0 7px 0;
+    }
+    #ai-feedback p:last-child {
+      margin-bottom: 0;
+    }
+
+    /* ─────────────────── */
+    .ctrl-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 18px
+    }
+
+    .ctrl-btn {
+      flex: 1;
+      padding: 10px;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #2e4c0c;
+      background: rgba(97,143,30,.08)
+    }
+
+    .ctrl-btn.on {
+      background: #618f1e;
+      color: #fff
+    }
+
+    .breakdown {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 22px
+    }
+
+    .breakdown-details {
+      margin-bottom: 16px;
+    }
+    .breakdown-details > summary {
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      color: rgba(65,110,15,.8);
+      letter-spacing: .06em;
+      padding: 6px 2px;
+      user-select: none;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .breakdown-details > summary::-webkit-details-marker { display: none; }
+    .breakdown-details > summary::before {
+      content: '▶';
+      font-size: 9px;
+      transition: transform .2s;
+      opacity: .7;
+    }
+    .breakdown-details[open] > summary::before {
+      transform: rotate(90deg);
+    }
+    .breakdown-details .breakdown {
+      margin-top: 8px;
+      margin-bottom: 0;
+    }
+    .breakdown-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      border-radius: 7px;
+      padding: 10px 14px
+    }
+
+    .breakdown-hint {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 10px;
+      background: rgba(97,143,30,.12);
+      color: #426010;
+      white-space: nowrap;
+      margin-top: 2px
+    }
+
+    .breakdown-en {
+      font-size: 13px;
+      font-weight: 700;
+      color: #2c2c2c
+    }
+
+    .breakdown-ja {
+      font-size: 11px;
+      color: #618f1e;
+      margin-top: 1px
+    }
+
+    .next-btn {
+      width: 100%;
+      padding: 15px;
+      border-radius: 9px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      background: #618f1e;
+      letter-spacing: .03em;
+      margin-top: 4px
+    }
+    .next-btn:hover { background: #5a6b46 }
+
+    .done-score-card {
+      background: #fff;
+      border: 1px solid #dddad4;
+      border-radius: 10px;
+      padding: 28px 56px;
+      margin-bottom: 32px;
+      text-align: center
+    }
+    .done-score-pct {
+      font-size: 60px;
+      font-weight: 800;
+      color: #618f1e;
+      letter-spacing: -.04em;
+      line-height: 1
+    }
+    .done-score-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(44,44,44,.5);
+      margin-top: 6px;
+      letter-spacing: .04em;
+      text-transform: uppercase
+    }
+    .done-score-detail {
+      font-size: 13px;
+      color: rgba(44,44,44,.38);
+      margin-top: 8px
+    }
+
+    .done-inner {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 20px;
+      max-width: 440px;
+      margin: 0 auto;
+      width: 100%;
+      text-align: center
+    }
+
+    .done-anim-wrap {
+      margin-bottom: 8px;
+      line-height: 0
+    }
+
+    .done-title {
+      font-size: 32px;
+      font-weight: 900;
+      margin-bottom: 8px
+    }
+
+    .done-sub {
+      color: #618f1e;
+      margin-bottom: 32px
+    }
+
+    .done-stats {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      margin-bottom: 36px
+    }
+
+    .done-stat {
+      border-radius: 8px;
+      padding: 14px 24px
+    }
+
+    .done-stat-n {
+      font-size: 32px;
+      font-weight: 700
+    }
+
+    .done-stat-l {
+      font-size: 11px;
+      margin-top: 2px
+    }
+
+    .home-btn {
+      width: 100%;
+      padding: 16px;
+      border-radius: 10px;
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #618f1e, #426010);
+      box-shadow: 0 6px 24px rgba(97,143,30,.28)
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ONBOARDING MODAL -->
+  <div id="onboarding" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.92);backdrop-filter:blur(8px);flex-direction:column;align-items:center;justify-content:center;padding:24px">
+    <div style="max-width:380px;width:100%;background:#fff;border:1px solid #dddad4;border-radius:14px;padding:32px 24px;text-align:center">
+      <div id="ob-step-dots" style="display:flex;justify-content:center;gap:8px;margin-bottom:24px"></div>
+      <div id="ob-emoji" style="font-size:56px;margin-bottom:16px"></div>
+      <div id="ob-title" style="font-size:22px;font-weight:800;margin-bottom:10px"></div>
+      <div id="ob-body" style="font-size:14px;color:rgba(44,44,44,.7);line-height:1.7;margin-bottom:28px"></div>
+      <button id="ob-next" onclick="obNext()" style="width:100%;padding:14px;border-radius:16px;font-size:16px;font-weight:700;color:#fff;background:linear-gradient(135deg,#618f1e,#426010)"></button>
+      <div style="margin-top:14px"><button onclick="obSkip()" style="background:none;color:rgba(44,44,44,.35);font-size:12px">スキップ</button></div>
+    </div>
+  </div>
+
+  <div id="app">
+
+    <!-- HOME -->
+    <div id="screen-home" class="screen active">
+      <div class="home-inner">
+        <div class="logo-lockup">
+          <svg width="42" height="50" viewBox="0 0 42 50" fill="none">
+            <rect x="0" y="0"  width="42" height="13" rx="0" fill="#618f1e"/>
+            <rect x="0" y="18" width="30" height="13" rx="0" fill="#618f1e" opacity=".62"/>
+            <rect x="0" y="36" width="18" height="13" rx="0" fill="#618f1e" opacity=".32"/>
+          </svg>
+          <div>
+            <h1 class="app-title">Chunk<span>Stack</span></h1>
+            <p class="app-sub">チャンクを積んだら気付けば長文</p>
+          </div>
+        </div>
+        <div style="width:100%;margin-bottom:18px">
+          <div class="section-label">チャンク送り</div>
+          <div class="filter-row">
+            <button class="filter-btn" id="btn-voice" onclick="setMode('voice')">🎙️ 音声入力</button>
+            <button class="filter-btn" id="btn-tap" onclick="setMode('tap')">タップ</button>
+          </div>
+        </div>
+        <div style="width:100%;margin-bottom:14px">
+          <div class="section-label">レベル</div>
+          <div class="filter-row">
+            <button class="filter-btn" id="flv-1" onclick="setLevel(1)">Lv.1</button>
+            <button class="filter-btn" id="flv-2" onclick="setLevel(2)">Lv.2</button>
+            <button class="filter-btn" id="flv-3" onclick="setLevel(3)">Lv.3</button>
+            <button class="filter-btn" id="flv-all" onclick="setLevel(null)">すべて</button>
+          </div>
+        </div>
+        <div style="width:100%;margin-bottom:14px">
+          <div class="section-label">出題数</div>
+          <div class="filter-row">
+            <button class="filter-btn" id="fq-5" onclick="setQCount(5)">5問</button>
+            <button class="filter-btn" id="fq-8" onclick="setQCount(8)">8問</button>
+            <button class="filter-btn" id="fq-10" onclick="setQCount(10)">10問</button>
+          </div>
+        </div>
+        <div style="width:100%;margin-bottom:24px">
+          <div class="section-label">出題スタイル</div>
+          <div class="filter-row">
+            <button class="filter-btn" id="btn-hint" onclick="setJeMode(false)">英・日でヒント</button>
+            <button class="filter-btn" id="btn-je" onclick="setJeMode(true)">日本語のみ</button>
+          </div>
+          <div class="mode-hint" id="je-hint"></div>
+        </div>
+        <button class="start-btn" onclick="startPractice()">トレーニング開始</button>
+        <div class="stats-row-mini">
+          <span id="stat-total">0</span>回練習&ensp;·&ensp;<span id="stat-perfect">—</span> 達成度&ensp;·&ensp;<span id="stat-sessions">0</span>セッション
+        </div>
+      </div>
+    </div>
+
+    <!-- PRACTICE -->
+    <div id="screen-practice" class="screen">
+      <div class="prac-header">
+        <div class="prac-top">
+          <button class="end-btn glass" onclick="endPractice()">✕ 終了</button>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="level-badge" id="p-level-badge">Lv.1</span>
+            <span class="prog-counter" id="p-counter">1/5</span>
+          </div>
+        </div>
+        <div class="prog-bar-wrap">
+          <div class="prog-bar" id="p-progress" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="prac-body" id="prac-body" onclick="onBodyClick()">
+        <div class="prac-body-inner" id="prac-body-inner">
+          <div class="chunks-list" id="chunks-list"></div>
+          <div class="voice-zone" id="voice-zone" style="display:none">
+            <div class="transcript-area" id="transcript-area"></div>
+            <div class="mic-wrap" onpointerdown="handleMicPress(event)" onpointerup="handleMicRelease(event)"
+              onpointerleave="handleMicRelease(event)" onpointercancel="handleMicRelease(event)" onclick="event.stopPropagation()">
+              <div class="mic-ring r1" id="mic-ring1" style="display:none"></div>
+              <div class="mic-ring r2" id="mic-ring2" style="display:none"></div>
+              <div class="mic-btn" id="mic-btn">🎙️</div>
+            </div>
+            <div class="wave-row" id="wave-row" style="display:none">
+              <div class="wbar"></div>
+              <div class="wbar"></div>
+              <div class="wbar"></div>
+              <div class="wbar"></div>
+              <div class="wbar"></div>
+            </div>
+            <div class="mic-label-text" id="mic-label-text"></div>
+            <div class="skip-hint">
+              <span class="key-badge">Space</span>
+              <span>またはタップでスキップ</span>
+            </div>
+          </div>
+          <div class="manual-hint" id="manual-hint" style="display:none">
+            <span class="key-badge" style="font-size:11px">Space</span>
+            <span id="manual-hint-text">タップでチャンク追加</span>
+          </div>
+          <div class="dots-row" id="dots-row"></div>
+        </div>
+        <div class="answer-zone" id="answer-zone" style="display:none" onclick="event.stopPropagation()">
+          <div class="answer-label">Answer</div>
+          <div class="answer-card glass2" id="answer-card"></div>
+          <div class="score-section">
+            <div class="score-title">📝 発話チェック</div>
+            <div id="score-rows"></div>
+          </div>
+          <div id="ai-feedback">
+            <div class="ai-fb-label">🤖 AI フィードバック</div>
+            <div id="ai-feedback-text"></div>
+          </div>
+          <div id="stress-section" style="display:none; margin-top:20px; padding:15px; background:rgba(255,255,255,0.05); border-radius:12px;">
+            <div class="score-title">🔥 Intent Challenge (Stress)</div>
+            <canvas id="stress-visualizer" style="width:100%; height:80px; background:#1e293b; border-radius:8px; margin-bottom:10px;"></canvas>
+            <div id="stress-result" style="text-align:center; font-weight:bold; min-height:1.5em;"></div>
+            <div id="stress-hint" style="text-align:center; font-size:0.8rem; opacity:0.7; margin-top:5px;"></div>
+          </div>
+          <div class="ctrl-row">
+            <button class="ctrl-btn" id="speak-btn" onclick="speakAnswer()">🔊 読み上げ</button>
+          </div>
+          <details class="breakdown-details" id="breakdown-details">
+            <summary>模範解答</summary>
+            <div class="breakdown" id="breakdown"></div>
+          </details>
+          <button class="next-btn" id="next-btn" onclick="nextQuestion()">次の問題へ →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DONE -->
+    <div id="screen-done" class="screen">
+      <div class="done-inner">
+        <div class="done-anim-wrap"><canvas id="done-canvas" width="300" height="200"></canvas></div>
+        <div class="done-title">お疲れ様でした！</div>
+        <div class="done-sub" id="done-sub"></div>
+        <div class="done-score-card">
+          <div class="done-score-pct" id="done-score-pct">—</div>
+          <div class="done-score-label">達成度</div>
+          <div class="done-score-detail" id="done-score-detail"></div>
+        </div>
+        <button class="home-btn" onclick="goHome()">ホームに戻る</button>
+      </div>
+    </div>
+
+  </div>
+  <script>
+    /* ═══════════════════════════════════════════════════════════
+       DATA POOL
+       LV1: SV/SVC/進行形 + 前置詞のみ (3-4チャンク)
+       LV2: 幅広いSV + 前置詞/to不定詞/関係代名詞(制限)/比較/that節/when節 (3-5チャンク)
+            ※コア文に tag を付与し、関係代名詞・that節を自然なペアのみに制限
+       LV3: 全文法 + 分詞構文/カンマwhich (5-7チャンク)
+            ※分詞構文はポジティブ・状態系で「どのコアにも自然につながる」ものに絞る
+       ═══════════════════════════════════════════════════════════ */
+    let DATA = null; // loaded from data.json at bootstrap
+
+    const LEVEL_COLORS = { 1: "#3a7c50", 2: "#c8b850", 3: "#b03020" };
+    const HAS_SPEECH = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let transcriber = null;
+    let whisperLoading = false;
+    let whisperReady = false;
+    let whisperFailed = false;
+
+    /* ── State ── */
+    const _initPrefs = (function(){ try { return JSON.parse(localStorage.getItem('cd-prefs')||'{}'); } catch(e){ return {}; } })();
+    let S = {
+      mode: HAS_SPEECH ? 'voice' : 'tap',
+      jeMode: _initPrefs.jeMode !== undefined ? _initPrefs.jeMode : false,
+      filterLevel: 'level' in _initPrefs ? _initPrefs.level : 1,
+      qCount: _initPrefs.qCount || 5,
+      queue: [],
+      qIdx: 0,
+      chunkIdx: 1,
+      showAnswer: false,
+      slashOn: false,
+      micState: 'idle',
+      micPermissionError: false,
+      transcript: '',
+      interim: '',
+      sessionResults: [],
+      chunkOk: 0,
+      chunkTotal: 0,
+      // 採点用: chunkIdx(0始まり)→ユーザーが発話したテキスト
+      transcriptHistory: {},
+      // Stress Detection
+      isWhisperMode: false,
+      audioChunks: [],
+      audioStream: null,
+      audioMimeType: '',
+      mediaRecorder: null,
+      audioCtx: null,
+      analyser: null,
+      dataArray: null,
+      source: null,
+      startTime: 0,
+      peakVal: 0,
+      peakTime: 0,
+      volumeHistory: [],
+    };
+
+    /* ── Persistence ── */
+    function loadStats() {
+      try { return JSON.parse(localStorage.getItem('cd-stats') || '{"totalQ":0,"sessions":0,"chunkOk":0,"chunkTotal":0}'); }
+      catch { return { totalQ: 0, sessions: 0, chunkOk: 0, chunkTotal: 0 }; }
+    }
+    function saveStats(stats) { localStorage.setItem('cd-stats', JSON.stringify(stats)); }
+    function loadPrefs() { try { return JSON.parse(localStorage.getItem('cd-prefs')||'{}'); } catch(e){ return {}; } }
+    function savePrefs(upd) { const p = loadPrefs(); Object.assign(p, upd); localStorage.setItem('cd-prefs', JSON.stringify(p)); }
+
+    /* ── Difficulty Bias (直近の評価に基づき難易度を自動調整) ── */
+    function getDifficultyBias() {
+      // -1: 短いパターン優先, 0: 通常, +1: 長いパターン優先
+      // 直近6問中 bad 3以上 → やさしめ / perfect 4以上 → チャレンジ
+      try {
+        const recent = JSON.parse(localStorage.getItem('cd-recent') || '[]');
+        if (recent.length < 4) return 0;
+        const last6 = recent.slice(-6);
+        const bads = last6.filter(r => r === 'bad').length;
+        const perfects = last6.filter(r => r === 'perfect').length;
+        if (bads >= 3) return -1;
+        if (perfects >= 4) return 1;
+        return 0;
+      } catch { return 0; }
+    }
+    function saveRecentRating(rating) {
+      try {
+        const recent = JSON.parse(localStorage.getItem('cd-recent') || '[]');
+        recent.push(rating);
+        if (recent.length > 20) recent.splice(0, recent.length - 20);
+        localStorage.setItem('cd-recent', JSON.stringify(recent));
+      } catch {}
+    }
+
+    /* ── Helpers ── */
+    function g(id) { return document.getElementById(id); }
+    function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+    function esc(s) { if (s === undefined || s === null) return ''; return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+    /* ═══════════════════════════════════════════════════
+       QUESTION GENERATION
+       ═══════════════════════════════════════════════════ */
+    // Normalize prompt for dedup: "When? (Weather)" → "When?", "Where? (City)" → "Where?"
+    function basePrompt(p) {
+      if (!p) return '';
+      return p.replace(/\s*\(.*?\)$/, '').trim();
+    }
+
+    function generateQuestion(levelNum, sessionUsedEns = new Set()) {
+      const levelKey = `level_${levelNum}`;
+      const levelData = DATA[levelKey];
+
+      // Pick random core
+      const core = levelData.core_sentences[Math.floor(Math.random() * levelData.core_sentences.length)];
+      const coreTags = core.tags || [];
+
+      // 難易度バイアスに基づきパターンを選択（短め/通常/長め）
+      const bias = getDifficultyBias();
+      let patternPool = levelData.patterns;
+      if (bias !== 0 && patternPool.length > 1) {
+        const sorted = [...patternPool].sort((a, b) => a.length - b.length);
+        const cut = Math.ceil(sorted.length / 2);
+        patternPool = bias < 0 ? sorted.slice(0, cut) : sorted.slice(sorted.length - cut);
+      }
+      const pattern = patternPool[Math.floor(Math.random() * patternPool.length)];
+
+      const chunks = [
+        { type: "core", ja: core.ja, en: core.en, hint: "S+V", tags: coreTags }
+      ];
+
+      // Semantic meta-tags: excluded from topic matching, used for cross-slot mutual exclusion
+      const TEMPORAL_TAGS = ["past", "pres", "habitual", "fut", "hypo"];
+      const SEMANTIC_META_TAGS = ["passive", "impersonal", "momentary", "one_time", "recurring", "morning_act", "morning_time"];
+      const coreTemporal = coreTags.find(t => TEMPORAL_TAGS.includes(t));
+
+      // Tracks semantic meta-tags chosen so far (for mutual exclusion across slots)
+      const chosenSemanticTags = new Set();
+      // Tracks en-values already picked (prevents "just for fun just for fun" duplicates)
+      const chosenEnValues = new Set();
+      // Tracks prompts already used (prevents same フリ e.g. "When?" appearing twice)
+      const chosenPrompts = new Set();
+      // Tracks semantic meaning tags chosen so far (prevents e.g. two "manner" chunks)
+      const chosenSemTags = new Set();
+
+      pattern.forEach(cat => {
+        const options = levelData.additions[cat];
+        if (!options) return;
+
+        // ── Slot-level semantic exclusions (Animacy hierarchy + Aspect) ──────────
+        // (A) Dangling participle: passive/impersonal subject cannot anchor a participial phrase
+        if (cat === 'participle' && coreTags.includes('passive')) return;
+        // (B) Agent presupposition: passive core + purposive to_infinitive (LV3 only — all use "I/my")
+        if (cat === 'to_infinitive' && levelNum === 3 && coreTags.includes('passive')) return;
+        // (C) Impersonal core + personal-purpose to_infinitive (LV2)
+        if (cat === 'to_infinitive' && coreTags.includes('impersonal')) return;
+        // (D) Speaker-relation relative clause requires a specific, chosen referent
+        if (cat === 'relative_obj' && coreTags.includes('impersonal')) return;
+        // (E) Counterfactual/irrealis core: comma_which continuation is aspectually incoherent
+        if (cat === 'comma_which' && coreTags.includes('hypo')) return;
+
+        // ── Item-level semantic pre-filter ────────────────────────────────────────
+        // Person filter: if core subject is third-person, exclude first-person additions
+        const coreIsFirstPerson = /\bI\b|\bmy\b|\bme\b|\bwe\b|\bour\b|\bmyself\b/i.test(core.en);
+        const semanticPool = options.filter(opt => {
+          const optTags = opt.tags || [];
+          // Block first-person additions on third-person cores (e.g. "by myself" after "She is kind")
+          if (!coreIsFirstPerson && /\bI\b|\bmy\b|\bme\b|\bmyself\b/i.test(opt.en)) return false;
+          // Momentaneous "now" core + recurring/habitual addition → temporal contradiction
+          if (optTags.includes('recurring') && coreTags.includes('momentary')) return false;
+          // Cross-slot: one_time ("for the first time") and recurring ("whenever") are mutually exclusive
+          if (optTags.includes('recurring') && chosenSemanticTags.has('one_time')) return false;
+          if (optTags.includes('one_time') && chosenSemanticTags.has('recurring')) return false;
+          // Redundancy: core already implies morning → don't add "in the morning"
+          if (optTags.includes('morning_time') && coreTags.includes('morning_act')) return false;
+          return true;
+        });
+
+        // ── Tense + topic filter (applied on semanticPool base) ───────────────────
+        const compatible = semanticPool.filter(opt => {
+          const optTags = opt.tags || [];
+          const optTemporal = optTags.find(t => TEMPORAL_TAGS.includes(t));
+
+          // 1. Tense Check: If both specify tense, they must match.
+          if (optTemporal && coreTemporal && optTemporal !== coreTemporal) return false;
+
+          // 2. Universal bypass (semantic checks already passed above)
+          if (optTags.includes("universal")) return true;
+
+          // 3. Topic Check: exclude semantic meta-tags from topic matching
+          const optTopics = optTags.filter(t => !TEMPORAL_TAGS.includes(t) && !SEMANTIC_META_TAGS.includes(t));
+          if (optTopics.length === 0) return true; // tense-only: universal within that tense
+          return optTopics.some(t => coreTags.includes(t));
+        });
+
+        // Fallback: tense-compatible from semanticPool
+        const source = compatible.length > 0 ? compatible : semanticPool.filter(opt => {
+          const optTags = opt.tags || [];
+          const optTemporal = optTags.find(t => TEMPORAL_TAGS.includes(t));
+          return !(optTemporal && coreTemporal && optTemporal !== coreTemporal);
+        });
+
+        // Final fallback: any semantically safe option, then any option
+        const rawSource = source.length > 0 ? source : (semanticPool.length > 0 ? semanticPool : options);
+        // Dedup: prefer items not already chosen (same en or same prompt フリ)
+        const dedupedSource = rawSource.filter(opt =>
+          !chosenEnValues.has(opt.en) &&
+          !chosenPrompts.has(opt.prompt) &&
+          !chosenPrompts.has(basePrompt(opt.prompt))
+        );
+        // Semantic conflict filter: exclude chunks whose semTag is already used in this question
+        const semTagFiltered = dedupedSource.filter(opt =>
+          !opt.semTag || !chosenSemTags.has(opt.semTag)
+        );
+        // Session reuse filter: prefer chunks not already used in this session
+        const notSessionUsed = semTagFiltered.filter(opt => !sessionUsedEns.has(opt.en));
+        // Priority: notSessionUsed > semTagFiltered > dedupedSource > rawSource
+        const finalSource = notSessionUsed.length > 0 ? notSessionUsed :
+                            semTagFiltered.length > 0 ? semTagFiltered :
+                            dedupedSource.length > 0  ? dedupedSource  : rawSource;
+        const choice = finalSource[Math.floor(Math.random() * finalSource.length)];
+        chosenEnValues.add(choice.en);
+        if (choice.prompt) {
+          chosenPrompts.add(choice.prompt);
+          chosenPrompts.add(basePrompt(choice.prompt)); // also block variants e.g. "When? (X)"
+        }
+        if (choice.semTag) chosenSemTags.add(choice.semTag);
+
+        // Track semantic meta-tags for subsequent slot exclusions
+        if (choice.tags) {
+          if (choice.tags.includes('one_time')) chosenSemanticTags.add('one_time');
+          if (choice.tags.includes('recurring')) chosenSemanticTags.add('recurring');
+        }
+
+        chunks.push({
+          type: cat,
+          ja: choice.ja,
+          en: choice.en,
+          hint: choice.hint || choice.prompt,
+          prompt: choice.prompt,
+          promptType: choice.promptType,
+          tags: choice.tags
+        });
+      });
+
+      const hints = [...new Set(chunks.slice(1).map(c => c.hint))];
+      return {
+        level: levelNum,
+        chunks: chunks,
+        grammar_focus: hints.join("・")
+      };
+    }
+
+    function generateSession() {
+      const levels = S.filterLevel ? [S.filterLevel] : [1, 2, 3];
+      const usedCores = new Set();
+      const sessionUsedEns = new Set(); // tracks addition chunks used across this session
+      return Array.from({ length: S.qCount }, () => {
+        let q, attempts = 0;
+        do {
+          q = generateQuestion(pickRandom(levels), sessionUsedEns);
+          attempts++;
+        } while (usedCores.has(q.chunks[0].en) && attempts < 10);
+        usedCores.add(q.chunks[0].en);
+        // Record all addition chunks used in this question
+        q.chunks.slice(1).forEach(c => sessionUsedEns.add(c.en));
+        return q;
+      });
+    }
+
+    /* ── Screens ── */
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      g('screen-' + id).classList.add('active');
+    }
+    function goHome() { speechSynthesis.cancel(); killRec(); showScreen('home'); refreshHome(); }
+
+    /* ── Onboarding ── */
+    const OB_STEPS = [
+      {
+        emoji: '🥋',
+        title: 'チャンクって何？',
+        body: '英語を「意味のかたまり（チャンク）」で話す練習です。\n\n例：<b>I went to a cafe</b> ＋ <b>yesterday</b> ＋ <b>with my friend</b>\n\nチャンクをつなぐ感覚を身につけると、英語がスムーズに出てくるようになります。'
+      },
+      {
+        emoji: '👆',
+        title: 'こんなふうに使います',
+        body: '① コア文が表示される<br>② チャンクのヒント（<b>Why?</b> / <b>When?</b> など）が出る<br>③ 英語で話す or タップして進める<br>④ 最後に正解文と発話チェックを確認！'
+      },
+      {
+        emoji: '🎙️',
+        title: '音声 or タップを選べます',
+        body: '<b>音声入力</b>：マイクボタンを長押しして英語を話す。スピーキング力アップに◎<br><br><b>タップ</b>：画面をタップして進める。まず内容を確認したいときに。<br><br>いつでも切り替えられます。'
+      }
+    ];
+    let obStep = 0;
+
+    function obRender() {
+      const s = OB_STEPS[obStep];
+      g('ob-emoji').textContent = s.emoji;
+      g('ob-title').textContent = s.title;
+      g('ob-body').innerHTML = s.body.replace(/\n/g, '<br>');
+      g('ob-next').textContent = obStep < OB_STEPS.length - 1 ? '次へ →' : 'はじめる！';
+      const dots = g('ob-step-dots');
+      dots.innerHTML = OB_STEPS.map((_, i) =>
+        `<div style="width:8px;height:8px;border-radius:50%;background:${i === obStep ? '#618f1e' : 'rgba(44,44,44,.12)'}"></div>`
+      ).join('');
+    }
+
+    function obNext() {
+      if (obStep < OB_STEPS.length - 1) { obStep++; obRender(); }
+      else obSkip();
+    }
+
+    function obSkip() {
+      localStorage.setItem('cd-ob-done', '1');
+      g('onboarding').style.display = 'none';
+    }
+
+    function maybeShowOnboarding() {
+      if (localStorage.getItem('cd-ob-done')) return;
+      obStep = 0; obRender();
+      g('onboarding').style.display = 'flex';
+    }
+
+    function refreshHome() {
+      const stats = loadStats();
+      g('stat-total').textContent = stats.totalQ || 0;
+      const _lp = stats.chunkTotal > 0 ? Math.round(stats.chunkOk / stats.chunkTotal * 100) + '%' : '—';
+      g('stat-perfect').textContent = _lp;
+      g('stat-sessions').textContent = stats.sessions || 0;
+      setMode(S.mode);
+      setLevel(S.filterLevel);
+      setQCount(S.qCount);
+      setJeMode(S.jeMode);
+      initWhisper();
+
+    }
+
+    /* ── Whisper AI Initialization ── */
+    async function initWhisper() {
+      // Guard: skip if already in-flight, done, or permanently failed
+      if (whisperLoading || whisperReady || whisperFailed) return;
+      // Guard: CDN module may not have loaded yet (ES module is async)
+      if (typeof window.pipeline !== 'function') return;
+
+      whisperLoading = true;
+      renderIntentChallenge(); // Show "loading…" spinner immediately
+      console.log("Initializing Whisper AI...");
+      try {
+        const timeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Whisper init timed out after 45s')), 45000));
+        transcriber = await Promise.race([
+          window.pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en'),
+          timeout,
+        ]);
+        whisperReady = true;
+        whisperLoading = false;
+        console.log("Whisper AI Ready.");
+        renderIntentChallenge(); // Swap spinner → challenge button
+      } catch (err) {
+        console.error("Whisper AI Initialization failed:", err);
+        whisperLoading = false;
+        whisperFailed = true;
+        renderIntentChallenge(); // Hide section cleanly on failure
+      }
+    }
+
+    /* ── Filter Buttons ── */
+    function styleBtn(el, active, color) {
+      el.style.background = active ? color : 'rgba(255,255,255,.08)';
+      el.style.color = active ? '#fff' : '#2e4c0c';
+      el.style.boxShadow = active ? `0 4px 20px ${color}66` : 'none';
+    }
+    function setJeMode(v) {
+      S.jeMode = v;
+      styleBtn(g('btn-hint'), !v, '#618f1e');
+      styleBtn(g('btn-je'), v, '#c8b850');
+      const hint = g('je-hint');
+      if (hint) hint.textContent = v ? '🇯🇵 日本語を見て英語チャンクを話す翻訳練習モード' : '';
+      savePrefs({ jeMode: v });
+    }
+    function setMode(m) {
+      if (!HAS_SPEECH && m === 'voice') m = 'tap';
+      S.mode = m;
+      styleBtn(g('btn-voice'), m === 'voice', '#618f1e');
+      styleBtn(g('btn-tap'), m === 'tap', '#618f1e');
+      if (!HAS_SPEECH) { g('btn-voice').style.opacity = '.4'; g('btn-voice').disabled = true; }
+      g('mode-hint').style.display = 'none';
+    }
+    function setLevel(lv) {
+      S.filterLevel = lv;
+      ['all', '1', '2', '3'].forEach(k => {
+        const match = (k === 'all' && lv === null) || String(k) === String(lv);
+        const col = lv !== null && k !== 'all' ? LEVEL_COLORS[Number(k)] : '#618f1e';
+        styleBtn(g('flv-' + k), match, col);
+      });
+      savePrefs({ level: lv });
+    }
+    function setQCount(n) {
+      S.qCount = n;
+      [5, 8, 10].forEach(q => styleBtn(g('fq-' + q), q === n, '#618f1e'));
+      savePrefs({ qCount: n });
+    }
+
+    /* ═══════════════════════════════════════════════════
+       PRACTICE FLOW
+       ═══════════════════════════════════════════════════ */
+    function startPractice() {
+      S.queue = generateSession();
+      S.qIdx = 0; S.chunkIdx = 1; S.showAnswer = false;
+      S.micState = 'idle'; // ensure mic icon is correct on session start
+      S.transcript = ''; S.interim = ''; S.sessionResults = []; S.transcriptHistory = {};
+      S.chunkOk = 0; S.chunkTotal = 0;
+      showScreen('practice'); renderPractice();
+      // PTT mode: do NOT auto-start recognition here.
+      // The user will press the mic button to start; auto-starting before any
+      // user gesture triggers the permission dialog immediately on file:// origins.
+    }
+
+    function cq() { return S.queue[S.qIdx]; }
+
+    function renderPractice() {
+      const q = cq(); if (!q) return;
+      const badge = g('p-level-badge');
+      badge.textContent = `Lv.${q.level}`; badge.style.background = LEVEL_COLORS[q.level];
+      g('p-counter').textContent = `${S.qIdx + 1}/${S.queue.length}`;
+      g('p-progress').style.width = `${(S.qIdx / S.queue.length) * 100}%`;
+      if(g('p-grammar')) g('p-grammar').textContent = q.grammar_focus;
+      renderChunks(); renderVoiceUI(); renderDots();
+      g('answer-zone').style.display = S.showAnswer ? 'block' : 'none';
+      g('chunks-list').style.display = S.showAnswer ? 'none' : 'flex';
+      g('dots-row').style.display = S.showAnswer ? 'none' : 'flex';
+      g('voice-zone').style.display = (!S.showAnswer && S.mode === 'voice') ? 'flex' : 'none';
+      g('manual-hint').style.display = (!S.showAnswer && S.mode === 'tap') ? 'flex' : 'none';
+      const inner = g('prac-body-inner');
+      if (inner) inner.style.justifyContent = S.showAnswer ? 'flex-start' : 'center';
+      if (S.showAnswer) renderAnswer();
+      updateManualHint();
+    }
+
+    function renderChunks() {
+      const q = cq(); const list = g('chunks-list'); list.innerHTML = '';
+      for (let i = 0; i < S.chunkIdx; i++) {
+        const c = q.chunks[i]; if (!c) break;
+        const isCore = i === 0, isLast = i === S.chunkIdx - 1;
+        const isLastChunk = i === q.chunks.length - 1;
+        const wrap = document.createElement('div');
+        wrap.className = 'chunk-wrap' + (isLast ? ' anim-slide' : '');
+        if (!isCore) {
+          const meta = document.createElement('div'); meta.className = 'chunk-meta';
+          const badgeLabel = S.jeMode ? (c.ja || c.prompt || c.hint) : (c.prompt || c.hint);
+          let metaHTML = `<span class="chunk-plus">＋</span><span class="chunk-hint-badge ${c.promptType === 'Wh-Question' ? 'wh' : 'vocab'}">${esc(badgeLabel)}</span>`;
+          if (isLastChunk) metaHTML += `<span class="last-chunk-tag">🔥 Last Chunk!</span>`;
+          meta.innerHTML = metaHTML;
+          wrap.appendChild(meta);
+        }
+        const card = document.createElement('div'); card.className = 'chunk-card ' + (isCore ? 'core' : 'extra');
+        if (isCore) {
+          card.innerHTML = `<div class="core-label">Core Sentence</div><div class="core-en">${esc(c.en)}</div>`;
+        } else {
+          // J→E mode: show Japanese; hint mode: show English prompt
+          const mainText = S.jeMode
+            ? `<span style="color:#fbbf24;font-size:17px;font-weight:700">${esc(c.ja)}</span>`
+            : c.promptType === 'VocabDrop'
+              ? `<span style="color:#fbbf24;font-size:15px;font-weight:600;opacity:0.9">${esc(c.ja)}</span>`
+              : (c.prompt || `<span style="opacity:0.5">${esc(c.type)}</span>`);
+          const typeLabel = S.jeMode ? '日→英' : (c.promptType || 'Addition');
+          const said = S.transcriptHistory[i];
+          const saidHTML = said
+            ? `<div class="chunk-said">🗣 「${esc(said)}」</div>`
+            : '';
+          card.innerHTML = `<div class="prompt-type">${esc(typeLabel)}</div><div class="prompt-main">${mainText}</div>${saidHTML}`;
+        }
+        wrap.appendChild(card); list.appendChild(wrap);
+      }
+    }
+
+    function renderDots() {
+      const q = cq(); const row = g('dots-row'); row.innerHTML = '';
+      q.chunks.forEach((_, i) => {
+        const d = document.createElement('div'); d.className = 'dot';
+        d.style.background = i < S.chunkIdx ? '#618f1e' : 'rgba(44,44,44,.1)';
+        row.appendChild(d);
+      });
+      const da = document.createElement('div'); da.className = 'dot';
+      da.style.background = 'rgba(255,255,255,.08)'; row.appendChild(da);
+    }
+
+    // Build final sentence: use user's transcript for ok-scored chunks, model answer for others
+    function getAssembledSentence(q) {
+      return q.chunks.map((c, i) => {
+        if (i === 0) return c.en; // core always uses model text
+        const t = S.transcriptHistory[i];
+        if (t && chunkIsOk(t, c)) return t;
+        return c.en;
+      }).join(' ');
+    }
+
+    function renderAnswer() {
+      const q = cq();
+      const card = g('answer-card');
+      card.textContent = getAssembledSentence(q);
+      // ja-ref: model-answer chunks → Japanese (c.ja), user-spoken chunks → their English
+      if (g('ja-ref')) g('ja-ref').textContent = q.chunks.map((c, i) => {
+        if (i === 0) return c.ja; // core always shows Japanese
+        const t = S.transcriptHistory[i];
+        return (t && chunkIsOk(t, c)) ? t : c.ja;
+      }).join('、');
+      // Reset breakdown to collapsed on each new answer
+      const det = g('breakdown-details');
+      if (det) det.removeAttribute('open');
+      g('breakdown').innerHTML = q.chunks.map(c =>
+        `<div class="breakdown-row glass"><span class="breakdown-hint">${esc(c.hint)}</span><div><div class="breakdown-en">${esc(c.en)}</div><div class="breakdown-ja">${esc(c.ja)}</div></div></div>`
+      ).join('');
+      renderScoring();
+    }
+
+    function updateManualHint() {
+      const q = cq(); if (!q) return;
+      g('manual-hint-text').textContent = S.chunkIdx >= q.chunks.length ? 'タップで解答表示' : 'タップでチャンク追加';
+    }
+
+    /* ── Advance ── */
+    function advance() {
+      if (S.showAnswer) return;
+      const now = Date.now();
+      if (now - lastAdvanceAt < 700) return; // debounce: drop any duplicate call within 700ms
+      lastAdvanceAt = now;
+      const q = cq();
+      // 発話を記録
+      if (S.transcript) S.transcriptHistory[S.chunkIdx - 1] = S.transcript;
+      if (S.chunkIdx < q.chunks.length) {
+        S.chunkIdx++; S.transcript = ''; S.interim = '';
+        S.micState = 'idle'; // reset mic icon between chunks
+        renderChunks(); renderDots(); renderVoiceUI(); updateManualHint();
+      } else {
+        S.showAnswer = true;
+        const _aiFbSentence = getAssembledSentence(q);
+        renderPractice();
+        // Phase 2: Auto-play assembled sentence (uses user's ok-scored chunks where available)
+        setTimeout(() => playNativeAudio(_aiFbSentence), 600);
+        // Phase 3: Async AI feedback (parallel with TTS)
+        getAiFeedback(_aiFbSentence, q);
+      }
+    }
+
+    let ttsPlaying = false;
+    function ttsStop() {
+      speechSynthesis.cancel();
+      ttsPlaying = false;
+      document.querySelectorAll('.tts-btn').forEach(b => b.textContent = '🔊');
+      const sb = g('speak-btn'); if (sb) sb.textContent = '🔊 読み上げ';
+    }
+    function playNativeAudio(text, el) {
+      if (ttsPlaying) { ttsStop(); return; }
+      ttsStop(); // clear any queued speech
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'en-US';
+      u.rate = 0.9;
+      ttsPlaying = true;
+      if (el) el.textContent = '⏹️';
+      u.onend = u.onerror = () => { ttsPlaying = false; ttsStop(); };
+      speechSynthesis.speak(u);
+    }
+
+    // Triple-layer guard against double-advance:
+    //   micPressedAt  — suppresses body clicks within 800ms of mic PRESS
+    //   micReleasedAt — suppresses body clicks within 600ms of mic RELEASE
+    //   lastAdvanceAt — debounces advance() itself (700ms), catches any other path
+    let micPressedAt = 0;
+    let micReleasedAt = 0;
+    let lastAdvanceAt = 0;
+    function onBodyClick() {
+      const now = Date.now();
+      if (now - micPressedAt  < 800)  return; // block click from mic press
+      if (now - micReleasedAt < 600)  return; // block click from mic release
+      if (now - lastAdvanceAt < 1500) return; // block click if advance() fired recently (voice auto-advance)
+      if (!S.showAnswer) advance();
+    }
+    function endPractice() { speechSynthesis.cancel(); goHome(); }
+
+    /* ═══════════════════════════════════════════════════
+       SCORING — 発話チェック
+       キーワード一致率で「修正不要」/「修正案あり」を判定
+       ═══════════════════════════════════════════════════ */
+    const STOP_WORDS = new Set([
+      'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+      'to', 'of', 'in', 'at', 'on', 'by', 'for', 'from', 'up', 'into', 'about',
+      'my', 'your', 'his', 'her', 'its', 'our', 'their', 'this', 'that',
+      'i', 'you', 'he', 'she', 'we', 'they', 'it', 'me', 'him', 'us', 'them',
+      'and', 'but', 'or', 'so', 'not', 'no', 'do', 'did', 'does',
+      'have', 'has', 'had', 'will', 'would', 'can', 'could', 'should', 'may', 'might',
+      'with', 'as', 'if', 'when', 'while', 'just', 'very', 'really',
+    ]);
+
+    function normalizeText(s) {
+      return s.toLowerCase().replace(/[.,!?'"']/g, '').replace(/\s+/g, ' ').trim();
+    }
+    function stem(w) {
+      return w.replace(/ing$/, '').replace(/ed$/, '').replace(/tion$/, '').replace(/ly$/, '').replace(/s$/, '');
+    }
+    function contentWords(text) {
+      return normalizeText(text).split(/\s+/).filter(w => w.length > 2 && !STOP_WORDS.has(w)).map(stem);
+    }
+
+    /* ── Claude AI Feedback ── */
+    // ⚠️ APIキーをここに入力してください（sk-ant-...）
+    const CLAUDE_API_KEY = '';
+
+    // Grammar type → Japanese label
+    const CHUNK_TYPE_LABEL = {
+      preposition:   '前置詞句',
+      when_clause:   '時の副詞節',
+      to_infinitive: 'to不定詞句',
+      comparison:    '比較表現',
+      relative_obj:  '関係代名詞節',
+      comma_which:   '非制限関係詞節',
+      participle:    '分詞構文',
+    };
+
+    async function getAiFeedback(sentence, q) {
+      const el = g('ai-feedback');
+      const textEl = g('ai-feedback-text');
+      console.log('[AI-FB] getAiFeedback called. sentence=', JSON.stringify(sentence));
+
+      if (!el || !textEl) { console.warn('[AI-FB] DOM elements not found'); return; }
+      if (!CLAUDE_API_KEY || CLAUDE_API_KEY === 'YOUR_CLAUDE_API_KEY_HERE') {
+        console.warn('[AI-FB] APIキーが未設定');
+        el.style.display = 'none'; return;
+      }
+
+      el.style.display = 'block';
+      textEl.textContent = '…フィードバック取得中';
+      textEl.style.opacity = '0.5';
+
+      // Build structured chunk description
+      let chunkDesc = '';
+      if (q && q.chunks) {
+        q.chunks.forEach((c, i) => {
+          if (i === 0) {
+            chunkDesc += 'コア文: ' + c.en + '\n';
+          } else {
+            const typeJa = CHUNK_TYPE_LABEL[c.type] || c.type;
+            const used = S.transcriptHistory[i];
+            const isOk = used && chunkIsOk(used, c);
+            const actual = isOk ? used : c.en;
+            const src = isOk ? '（学習者の発話）' : '（モデル答）';
+            chunkDesc += 'チャンク' + i + ' [' + typeJa + ']: ' + actual + ' ' + src + '\n';
+          }
+        });
+      }
+
+      const prompt = [
+        '【練習の概要】',
+        'これは「チャンキング練習」という英語口頭表現トレーニングの結果です。',
+        '学習者はコア文に文法チャンクを声に出して追加していきました。',
+        '「（学習者の発話）」は実際に話した内容、「（モデル答）」はスキップまたは不正解のため自動補完された模範答案です。',
+        '',
+        '【今回の文の構造】',
+        chunkDesc,
+        '【組み立てられた文全体】',
+        sentence,
+        '',
+        '【フィードバックのルール】',
+        '・評価対象は「（学習者の発話）」のチャンクのみ。「（モデル答）」には一切コメント不要',
+        '・最初の1文は必ず学習者の実際の発話を引用した具体的なポジティブコメントにする',
+        '・「よく頑張りました」「素晴らしい」など内容のない褒め言葉は禁止',
+        '・例：「〜の接続が自然です。」「〜をうまく使えています。」など発話内容を具体的に褒める',
+        '・問題のある「（学習者の発話）」チャンクがあれば、チャンクごとに改行して1文ずつ指摘する',
+        '・1文あたり最大40字。全体で最大3文（ポジティブ1文＋指摘最大2文）',
+        '・問題がなければポジティブ1文のみで終わる',
+        '・「フィードバック」「評価」などの見出しや記号（#・*・【】など）は使わない',
+        '・改行以外の装飾なしの平文で答える',
+      ].join('\n');
+
+      const url = 'https://api.anthropic.com/v1/messages';
+      console.log('[AI-FB] fetching Claude API...');
+      console.log('[AI-FB] prompt preview:', prompt.slice(0, 200));
+      const t0 = Date.now();
+
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'x-api-key': CLAUDE_API_KEY,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true',
+            'content-type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5',
+            max_tokens: 700,
+            messages: [{ role: 'user', content: prompt }]
+          })
+        });
+
+        const ms = Date.now() - t0;
+        console.log('[AI-FB] status=' + res.status + ' (' + ms + 'ms)');
+
+        if (!res.ok) {
+          const errBody = await res.text().catch(() => '');
+          console.error('[AI-FB] API error', res.status, errBody.slice(0, 300));
+          el.style.display = 'none'; return;
+        }
+
+        const data = await res.json();
+        console.log('[AI-FB] usage: input=', data.usage && data.usage.input_tokens,
+                    'output=', data.usage && data.usage.output_tokens);
+
+        const text = data.content && data.content[0] && data.content[0].text || '';
+        console.log('[AI-FB] text preview:', text.slice(0, 100));
+
+        if (text) {
+          // Render: each non-empty line becomes a <p> with 💡 prefix
+          const escaped = text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+          const lines = escaped.split('\n').filter(l => l.trim());
+          textEl.innerHTML = lines.map(l => `<p>💡 ${l}</p>`).join('');
+          textEl.style.opacity = '1';
+        } else {
+          console.warn('[AI-FB] empty response');
+          el.style.display = 'none';
+        }
+      } catch (e) {
+        console.error('[AI-FB] fetch error:', e);
+        el.style.display = 'none';
+      }
+    }
+
+    // Wh-Question chunks: validate by structural pattern (any valid temporal/locative/etc. phrase)
+    // rather than comparing to the specific model answer.
+    function evaluateWhQuestion(transcript, prompt) {
+      const t = normalizeText(transcript);
+      if (!t) return false;
+      const words = t.split(/\s+/);
+      if (words.length < 2) return false; // need at least 2 words
+      const p = prompt.toLowerCase();
+      const w0 = words[0];
+      if (p.startsWith('when')) {
+        return /^(after|before|when|whenever|while|during|at|in|on|over|last|this|next|until|since|throughout|by|every|each)\b/.test(t);
+      }
+      if (p.startsWith('where')) {
+        return /^(at|in|near|by|around|next to|behind|outside|inside|on|under|above|across|between)\b/.test(t);
+      }
+      if (p.startsWith('why')) {
+        return /^(to |for |because|in order|so that)/.test(t);
+      }
+      if (p.startsWith('who with')) {
+        return /^with\b/.test(t);
+      }
+      if (p.startsWith('how long')) {
+        return /^(for|over|during|throughout|within)\b/.test(t);
+      }
+      if (p.startsWith(', which')) {
+        return /^,?\s*which\b/.test(t);
+      }
+      // Generic Wh-Question: any 2+ word utterance
+      return words.length >= 2;
+    }
+
+    // Unified OK check: uses structural validation for Wh-Questions, similarity for VocabDrop
+    function chunkIsOk(transcript, chunk) {
+      if (!transcript || !transcript.trim()) return false;
+      if (chunk.promptType === 'Wh-Question' && chunk.prompt) {
+        return evaluateWhQuestion(transcript, chunk.prompt);
+      }
+      return evaluateTranscript(transcript, chunk.en).ok === true;
+    }
+
+    function evaluateTranscript(userText, expectedText) {
+      if (!userText || !userText.trim()) return { ok: null };
+      const uNorm = normalizeText(userText);
+      const eNorm = normalizeText(expectedText);
+      // Exact / substring match
+      if (uNorm === eNorm || uNorm.includes(eNorm) || eNorm.includes(uNorm)) return { ok: true };
+      // Structural match: same grammatical opener means the student used the right construction
+      // e.g. "when we had lunch" ≈ "when I was at home"  /  "with my friend" ≈ "with my family"
+      // (to-infinitive, when/while-clause, with/for/at phrase, etc.)
+      const STRUCTURE_WORDS = new Set([
+        'when','while','whenever','because','since','although','though','even','if','unless',
+        'to','for','with','at','in','on','by','from','after','before','until','as',
+        'which','who','what','where','how','that',
+      ]);
+      const firstU = uNorm.split(' ')[0];
+      const firstE = eNorm.split(' ')[0];
+      if (firstU && firstE && firstU === firstE && STRUCTURE_WORDS.has(firstU)) return { ok: true };
+      // Keyword overlap fallback
+      const eKeys = contentWords(expectedText);
+      const uKeys = contentWords(userText);
+      if (eKeys.length === 0) return { ok: true };
+      let hits = 0;
+      for (const ek of eKeys) {
+        if (uKeys.some(uk => uk === ek || uk.startsWith(ek.slice(0, -1)) || ek.startsWith(uk.slice(0, -1)))) hits++;
+      }
+      return { ok: hits / eKeys.length >= 0.55 };
+    }
+
+    function renderScoring() {
+      const q = cq(); const el = g('score-rows'); if (!el) return;
+      // 音声モード以外・履歴が全くない場合は表示しない
+      const hasAny = Object.keys(S.transcriptHistory).length > 0;
+      if (!hasAny) { el.innerHTML = '<div style="text-align:center;font-size:12px;color:rgba(44,44,44,.3);padding:8px 0">（音声入力なし）</div>'; renderIntentChallenge(); return; }
+      let html = '';
+      // additions のみ採点（index 1以降）
+      for (let i = 1; i < q.chunks.length; i++) {
+        const chunk = q.chunks[i];
+        const transcript = S.transcriptHistory[i] || '';
+        const ptClass = chunk.promptType === 'Wh-Question' ? 'wh' : 'vocab';
+        if (!transcript) {
+          html += `<div class="score-row skip">
+        <div class="score-meta"><span class="score-hint-badge ${ptClass}">${esc(S.jeMode ? (chunk.ja || chunk.hint) : chunk.hint)}</span><span class="score-badge-skip">（スキップ）</span></div>
+        <div class="score-correction"><button class="tts-btn" data-text="${esc(chunk.en)}" onclick="playNativeAudio(this.dataset.text,this)">🔊</button>💡 ${esc(chunk.en)}</div>
+      </div>`;
+          continue;
+        }
+        const badgeText = S.jeMode ? (chunk.ja || chunk.prompt || chunk.hint) : (chunk.prompt || chunk.hint);
+        const isOk = chunkIsOk(transcript, chunk);
+        if (isOk) {
+          html += `<div class="score-row ok">
+        <div class="score-meta"><span class="score-hint-badge ${ptClass}">${esc(badgeText)}</span></div>
+        <div class="score-user">「${esc(transcript)}」</div>
+      </div>`;
+        } else {
+          html += `<div class="score-row ng">
+        <div class="score-meta"><span class="score-hint-badge ${ptClass}">${esc(badgeText)}</span><span class="score-badge-ng">💡 参考例あり</span></div>
+        <div class="score-user">「${esc(transcript)}」</div>
+        <div class="score-correction"><button class="tts-btn" data-text="${esc(chunk.en)}" onclick="playNativeAudio(this.dataset.text,this)">🔊</button>モデル例: ${esc(chunk.en)}</div>
+      </div>`;
+        }
+      }
+      el.innerHTML = html;
+      renderIntentChallenge();
+    }
+
+    function renderIntentChallenge() {
+      const section = g('stress-section');
+      const resultEl = g('stress-result');
+      const hintEl = g('stress-hint');
+
+      // Failed to load → hide entirely so the user isn't left confused
+      if (whisperFailed) { section.style.display = 'none'; return; }
+
+      // Still loading → show a spinner message
+      if (whisperLoading) {
+        section.style.display = 'block';
+        resultEl.innerHTML = '<span style="color:rgba(44,44,44,.5);font-size:13px">⏳ Whisper AI 読込中...</span>';
+        hintEl.textContent = '';
+        return;
+      }
+
+      // CDN not yet ready (window.pipeline not loaded) → hide until next call
+      if (!whisperReady) { section.style.display = 'none'; return; }
+
+      // Ready → show challenge button
+      const q = cq();
+      if (!q) { section.style.display = 'none'; return; }
+      section.style.display = 'block';
+
+      // Pick a content word for the user to emphasize
+      const words = contentWords(q.chunks.map(c => c.en).join(' '));
+      const target = words[Math.floor(Math.random() * words.length)] || "word";
+
+      resultEl.innerHTML = `
+        <div id="intent-feedback" style="min-height:1.4em;font-size:13px;text-align:center;color:rgba(44,44,44,.6);margin-bottom:6px"></div>
+        <button class="ctrl-btn" id="stress-btn"
+          onpointerdown="startIntentChallenge(event)" onpointerup="stopIntentChallenge(event)"
+          ontouchstart="startIntentChallenge(event)" ontouchend="stopIntentChallenge(event)"
+          style="margin:6px auto;display:block;background:#f59e0b;touch-action:none">
+          🎙️ 「${esc(target)}」を強調して発音
+        </button>`;
+      hintEl.textContent = "ボタンを長押しして、指定された単語を強く発音してください";
+      S.intentTarget = target;
+    }
+
+    async function startIntentChallenge(e) {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      const fb = g('intent-feedback');
+      if (fb) fb.textContent = '🎙️ 聞き取り中...';
+      const btn = g('stress-btn');
+      if (btn) { btn.style.background = '#ef4444'; btn.style.opacity = '0.85'; }
+      S.isWhisperMode = true;
+      startWhisperAudio();
+    }
+
+    async function stopIntentChallenge(e) {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      const fb = g('intent-feedback');
+      if (fb) fb.textContent = '⏳ 解析中...';
+      const btn = g('stress-btn');
+      if (btn) { btn.style.background = '#f59e0b'; btn.style.opacity = '1'; }
+      const result = await stopWhisperAudio();
+      S.isWhisperMode = false;
+
+      if (result.error) {
+        if (fb) fb.textContent = 'エラー: ' + result.error;
+        return;
+      }
+
+      drawStressVisuals(result);
+
+      const isMatch = result.stressedWord && result.stressedWord.toLowerCase().includes(S.intentTarget.toLowerCase());
+      if (fb) {
+        if (isMatch) {
+          fb.innerHTML = `<span style="color:#10b981">🎯 Excellent! 「${esc(result.stressedWord)}」が強調されました</span>`;
+        } else {
+          fb.innerHTML = `<span style="color:#f59e0b">惜しい！ 最も強かったのは「${esc(result.stressedWord || '?')}」でした</span>`;
+        }
+      }
+    }
+
+    function drawStressVisuals(result) {
+      const canvas = g('stress-visualizer');
+      const ctx = canvas.getContext('2d');
+      // Set internal dimensions
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw volume curve
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#10b981";
+      ctx.beginPath();
+      const totalTime = S.volumeHistory[S.volumeHistory.length - 1].time;
+      S.volumeHistory.forEach((v, i) => {
+        const x = (v.time / totalTime) * canvas.width;
+        const y = canvas.height - (v.dB / 50) * canvas.height;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      // Draw word boundaries and highlight user's target
+      result.words.forEach(w => {
+        const x1 = (w.start / totalTime) * canvas.width;
+        const x2 = (w.end / totalTime) * canvas.width;
+        
+        ctx.strokeStyle = "rgba(255,255,255,0.2)";
+        ctx.beginPath(); ctx.moveTo(x1, 0); ctx.lineTo(x1, canvas.height); ctx.stroke();
+
+        ctx.font = "10px sans-serif";
+        ctx.fillStyle = "rgba(255,255,255,0.5)";
+        ctx.fillText(w.text, x1 + 2, 12);
+
+        if (w.text.toLowerCase().includes(S.intentTarget.toLowerCase())) {
+          ctx.fillStyle = "rgba(245, 158, 11, 0.2)";
+          ctx.fillRect(x1, 0, x2 - x1, canvas.height);
+        }
+      });
+
+      // Draw peak as a yellow line
+      if (S.peakTime) {
+        const px = (S.peakTime / totalTime) * canvas.width;
+        ctx.strokeStyle = "#fbbf24";
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, canvas.height); ctx.stroke();
+      }
+    }
+
+    /* ── Voice ── */
+    let rec = null;
+    let recWanted = false;
+
+    function startRec() {
+      if (!SpeechRec || S.micPermissionError) return;
+      if (rec) return; // Already running or starting
+
+      const r = new SpeechRec();
+      r.lang = 'en-US'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
+
+      r.onstart = () => { if (rec === r && recWanted) setMicState('listening'); };
+      r.onresult = (e) => {
+        // PTT guard: ignore results when user is not holding the button
+        if (!recWanted) return;
+        if (rec !== r || S.mode !== 'voice' || S.showAnswer || S.micState === 'paused') return;
+        if (!g('screen-practice').classList.contains('active')) return;
+        let interim = '', final = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const t = e.results[i][0].transcript;
+          if (e.results[i].isFinal) final += t; else interim += t;
+        }
+        if (interim) { S.interim = interim; renderVoiceUI(); }
+        if (final) {
+          S.transcript = final; S.interim = ''; setMicState('heard');
+          setTimeout(() => {
+            advance();
+            // In PTT, we don't auto-resume to 'listening' state on advance
+            if (!S.showAnswer && recWanted) setMicState('listening');
+            else if (!S.showAnswer) setMicState('idle');
+          }, 480);
+        }
+      };
+      r.onerror = (e) => {
+        if (rec !== r) return;
+        console.error('Speech recognition error:', e.error);
+        if (e.error === 'not-allowed') {
+          S.micPermissionError = true;
+          recWanted = false;
+          setMicState('error');
+          return;
+        }
+        // Silence noise errors that happen on quick release
+        if (e.error === 'no-speech' || e.error === 'aborted') return;
+      };
+      r.onend = () => {
+        if (rec === r) rec = null;
+        // loop guard: don't restart too quickly if we haven't successfully started
+        const now = Date.now();
+        const tooFast = (now - (S.lastStartAttempt || 0)) < 1000;
+        
+        // In PTT, we only restart if the user is STILL holding the button
+        if (recWanted && S.mode === 'voice' && !S.micPermissionError && !tooFast) {
+          setTimeout(startRec, 200);
+        } else if (!S.micPermissionError) {
+          setMicState('idle');
+        }
+      };
+      rec = r;
+      try {
+        r.start();
+        S.lastStartAttempt = Date.now();
+      } catch (e) {
+        console.warn('rec start error:', e);
+        rec = null;
+        setMicState('error');
+      }
+    }
+
+    function killRec() {
+      recWanted = false;
+      const old = rec; rec = null;
+      try { if (old) old.abort(); } catch { }
+      if (S.micState !== 'error') setMicState('idle');
+    }
+
+    function handleMicPress(e) {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        // Capture pointer: all subsequent pointer events route to this element,
+        // even if finger slips off — prevents stray clicks reaching prac-body
+        try { if (e.pointerId != null) e.currentTarget.setPointerCapture(e.pointerId); } catch(_) {}
+      }
+      micPressedAt = Date.now(); // guard: block body-click within 800ms of press
+      if (S.micPermissionError) {
+        // User acknowledged error — reset and try once more
+        S.micPermissionError = false;
+        recWanted = true;
+        startRec();
+        return;
+      }
+      if (S.showAnswer) return;
+      recWanted = true;
+      if (rec) {
+        // Instance already running (kept alive from previous press) — just flip UI
+        setMicState('listening');
+      } else {
+        // First press of the session: create instance and trigger permission dialog
+        startRec();
+      }
+    }
+
+    function handleMicRelease(e) {
+      if (e) e.preventDefault();
+      recWanted = false;
+      micReleasedAt = Date.now(); // For double-advance guard in onBodyClick
+      // Immediate UI feedback: stop showing "listening"
+      if (S.micState === 'listening') setMicState('idle');
+      // Do NOT kill the recognition here. On file:// origins Chrome triggers a
+      // new permission dialog for every new SpeechRecognition instance.
+      // Keeping the same instance alive avoids repeated permission prompts.
+    }
+    function setMicState(s) { S.micState = s; renderVoiceUI(); }
+
+    function renderVoiceUI() {
+      const isL = S.micState === 'listening', isH = S.micState === 'heard',
+        isP = S.micState === 'paused', isE = S.micState === 'error';
+      const col = isE ? '#b03020' : isP ? 'rgba(44,44,44,.45)' : isH ? '#3a7c50' : isL ? '#618f1e' : '#3a4030';
+      const btn = g('mic-btn');
+      if (btn) {
+        btn.style.background = isL ? `radial-gradient(circle at 40% 35%,${col}cc,${col})` : col;
+        btn.style.boxShadow = isL ? `0 0 36px ${col}77` : '0 4px 14px rgba(0,0,0,.4)';
+        btn.textContent = isH ? '✅' : isP ? '⏸' : isE ? '🚫' : '🎙️';
+      }
+      const r1 = g('mic-ring1'), r2 = g('mic-ring2');
+      if (r1 && r2) { r1.style.display = r2.style.display = isL ? 'block' : 'none'; r1.style.background = r2.style.background = col; }
+      const wr = g('wave-row'); if (wr) wr.style.display = isL ? 'flex' : 'none';
+      const lbl = g('mic-label-text');
+      if (lbl) lbl.textContent = isL ? 'はなしてください' : isH ? '' : isE ? '🚫 マイク許可をONにしてください' : '🎙️ 長押しして開始';
+      const ta = g('transcript-area');
+      if (ta) {
+        if (isH && S.transcript) ta.innerHTML = `<div class="transcript-pill glass anim-heard"><span class="heard-text">✅「${esc(S.transcript)}」</span></div>`;
+        else if (isL && S.interim) ta.innerHTML = `<div class="transcript-pill glass"><span class="interim-text">${esc(S.interim)}...</span></div>`;
+        else if (isL) { const q = cq(); ta.innerHTML = `<span class="listen-hint">${S.chunkIdx >= (q ? q.chunks.length : 99) ? '最後のチャンクを話してください' : '英語で話してください'}</span>`; }
+        else ta.innerHTML = '';
+      }
+    }
+
+    /* ── Whisper / Stress Detection Logic (Ported from stress-poc.html) ── */
+    async function startWhisperAudio() {
+      if (S.micState === 'listening') return;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        S.audioStream = stream; // Store so we can stop tracks later
+
+        S.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        S.analyser = S.audioCtx.createAnalyser();
+        S.analyser.fftSize = 2048;
+        S.analyser.smoothingTimeConstant = 0;
+        S.source = S.audioCtx.createMediaStreamSource(stream);
+        S.source.connect(S.analyser);
+
+        S.dataArray = new Float32Array(S.analyser.fftSize);
+        S.startTime = performance.now();
+        S.peakVal = 0;
+        S.peakTime = 0;
+        S.volumeHistory = [];
+        S.audioChunks = [];
+
+        // Prefer webm/opus (Chrome/Firefox); fall back to mp4 (Safari); last resort: browser default
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : MediaRecorder.isTypeSupported('audio/mp4')
+            ? 'audio/mp4'
+            : '';
+        S.audioMimeType = mimeType;
+        S.mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+        S.mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) S.audioChunks.push(e.data);
+        };
+        S.mediaRecorder.start();
+
+        setMicState('listening');
+        requestAnimationFrame(updateWhisperVisuals);
+      } catch (err) {
+        console.error("Whisper mic access denied", err);
+        setMicState('error');
+      }
+    }
+
+    function updateWhisperVisuals() {
+      if (S.micState !== 'listening') return;
+      requestAnimationFrame(updateWhisperVisuals);
+
+      S.analyser.getFloatTimeDomainData(S.dataArray);
+      let sumSquares = 0;
+      for (let i = 0; i < S.dataArray.length; i++) sumSquares += S.dataArray[i] * S.dataArray[i];
+      let rms = Math.sqrt(sumSquares / S.dataArray.length);
+      let dB = rms > 0.001 ? 20 * Math.log10(rms) + 60 : 0;
+      dB = Math.max(0, dB);
+
+      let now = performance.now() - S.startTime;
+      S.volumeHistory.push({ time: now, rms: rms, dB: dB });
+      if (rms > S.peakVal) { S.peakVal = rms; S.peakTime = now; }
+    }
+
+    async function stopWhisperAudio() {
+      // Return a well-shaped error object instead of undefined so callers can
+      // safely access result.error without crashing.
+      if (S.micState !== 'listening') return { error: 'Not recording' };
+      setMicState('heard'); // Temporary state while processing
+
+      await new Promise(resolve => {
+        S.mediaRecorder.onstop = resolve;
+        S.mediaRecorder.stop();
+      });
+
+      const result = await analyzeStress();
+
+      // Disconnect Web Audio graph
+      if (S.source) S.source.disconnect();
+      if (S.audioCtx) S.audioCtx.close();
+
+      // Release microphone — stop all tracks so the browser mic indicator disappears
+      if (S.audioStream) {
+        S.audioStream.getTracks().forEach(t => t.stop());
+        S.audioStream = null;
+      }
+
+      return result;
+    }
+
+    async function analyzeStress() {
+      if (S.volumeHistory.length === 0 || S.peakVal < 0.01) return { error: "No audio" };
+
+      const audioBlob = new Blob(S.audioChunks, S.audioMimeType ? { type: S.audioMimeType } : {});
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const decodedBuffer = await S.audioCtx.decodeAudioData(arrayBuffer);
+
+      const targetSampleRate = 16000;
+      const resampleLength = Math.max(1, Math.ceil(decodedBuffer.length * targetSampleRate / decodedBuffer.sampleRate));
+      const resampleCtx = new OfflineAudioContext(1, resampleLength, targetSampleRate);
+      const bufferSource = resampleCtx.createBufferSource();
+      bufferSource.buffer = decodedBuffer;
+      bufferSource.connect(resampleCtx.destination);
+      bufferSource.start();
+      const resampledBuffer = await resampleCtx.startRendering();
+
+      let whisperInput = resampledBuffer.getChannelData(0);
+      let maxAbs = 0;
+      for (let i = 0; i < whisperInput.length; i++) {
+        if (Math.abs(whisperInput[i]) > maxAbs) maxAbs = Math.abs(whisperInput[i]);
+      }
+      if (maxAbs > 0.001) {
+        const gain = 0.9 / maxAbs;
+        for (let i = 0; i < whisperInput.length; i++) whisperInput[i] *= gain;
+      }
+
+      try {
+        const output = await transcriber(whisperInput, { return_timestamps: 'word' });
+        const transcriptWords = output.chunks;
+        if (!transcriptWords || transcriptWords.length === 0) return { error: "No transcript" };
+
+        const recordDuration = S.volumeHistory[S.volumeHistory.length - 1].time;
+        const whisperDuration = transcriptWords[transcriptWords.length - 1].timestamp[1];
+        const timeScale = recordDuration / whisperDuration;
+
+        const speechStartTime = transcriptWords[0].timestamp[0] * timeScale;
+        const speechEndTime = transcriptWords[transcriptWords.length - 1].timestamp[1] * timeScale;
+
+        let windowPeakVal = 0;
+        let windowPeakTime = 0;
+        for (const sample of S.volumeHistory) {
+          if (sample.time >= speechStartTime && sample.time <= speechEndTime) {
+            if (sample.rms > windowPeakVal) {
+              windowPeakVal = sample.rms;
+              windowPeakTime = sample.time;
+            }
+          }
+        }
+
+        // Identify the word with the peak stress
+        let stressedWord = null;
+        for (const chunk of transcriptWords) {
+          const wStart = chunk.timestamp[0] * timeScale;
+          const wEnd = chunk.timestamp[1] * timeScale;
+          if (windowPeakTime >= wStart && windowPeakTime <= wEnd) {
+            stressedWord = chunk.text.trim();
+            break;
+          }
+        }
+
+        return {
+          text: output.text,
+          stressedWord: stressedWord,
+          words: transcriptWords.map(w => ({ text: w.text.trim(), start: w.timestamp[0] * timeScale, end: w.timestamp[1] * timeScale }))
+        };
+      } catch (err) {
+        console.error("Whisper analysis error:", err);
+        return { error: err.message };
+      }
+    }
+
+    /* ── Answer Controls ── */
+    function speakAnswer() {
+      const q = cq(); if (!q) return;
+      if (ttsPlaying) { ttsStop(); return; }
+      ttsStop();
+      const u = new SpeechSynthesisUtterance(getAssembledSentence(q));
+      u.lang = 'en-US'; u.rate = 0.85;
+      ttsPlaying = true;
+      g('speak-btn').textContent = '⏹️ 停止';
+      u.onend = u.onerror = () => { ttsPlaying = false; ttsStop(); };
+      speechSynthesis.speak(u);
+    }
+
+    /* ── Next Question & Session End ── */
+    function runTreeAnimation(pct) {
+      var canvas = document.getElementById('done-canvas');
+      if (!canvas) return;
+      if (window._tAF) { cancelAnimationFrame(window._tAF); window._tAF = null; }
+      var ctx = canvas.getContext('2d');
+      var W = 300, H = 200;
+      canvas.width = W; canvas.height = H;
+
+      var maxStage = pct >= 75 ? 3 : pct >= 50 ? 2 : pct >= 25 ? 1 : 0;
+      var G = '#618f1e', GD = '#3d5a12', GL = '#8ab83a', TR = '#7a4826';
+
+      var eOut = function(t){ return 1-(1-t)*(1-t)*(1-t); };
+      var eIO  = function(t){ return t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; };
+      var bnc  = function(t){ return t<0.72 ? eOut(t/0.72)*1.15 : 1.15-0.15*eOut((t-0.72)/0.28); };
+      var lerp = function(a,b,p){ return a+(b-a)*p; };
+      var cl   = function(v){ return Math.max(0,Math.min(1,v)); };
+
+      /* ── Timing map ── */
+      var ms=0, M={};
+      var seg = function(k,d){ M[k]=ms; ms+=d; };
+      seg('bIdle',800); seg('bGather',400); seg('tPop',400);
+      seg('tIdle', maxStage===0 ? 99999 : 700);
+      if (maxStage>=1){ seg('tSpawn',500); seg('tGather',400); seg('btPop',400); seg('btIdle', maxStage===1 ? 99999 : 700); }
+      if (maxStage>=2){ seg('btSpawn',500); seg('btGather',400); seg('fPop',400); seg('fIdle',99999); }
+
+      var ph = function(a,b){ var d=(M[b]!==undefined ? M[b] : M[a]+1e9)-M[a]; return cl((el-M[a])/d); };
+
+      /* ── Draw: Branch (Y-twig) ── */
+      var drawBranch = function(x,y,sz,ang,alpha,sw){
+        ctx.save(); ctx.globalAlpha=cl(alpha); ctx.translate(x,y);
+        ctx.rotate(ang+Math.sin(sw*0.9)*0.07);
+        ctx.strokeStyle=G; ctx.lineWidth=Math.max(1.5,sz*0.08); ctx.lineCap='round';
+        ctx.beginPath(); ctx.moveTo(0,sz*0.40); ctx.lineTo(0,0); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-sz*0.30,-sz*0.42); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo( sz*0.30,-sz*0.42); ctx.stroke();
+        ctx.fillStyle=GL;
+        [[0,sz*0.40],[-sz*0.30,-sz*0.42],[sz*0.30,-sz*0.42]].forEach(function(p){
+          ctx.beginPath(); ctx.arc(p[0],p[1],sz*0.10,0,Math.PI*2); ctx.fill();
+        });
+        ctx.restore();
+      };
+
+      /* ── Draw: Tree (3-layer) ── */
+      /* Each layer: [base_width, base_y, apex_y, color] */
+      var drawTree = function(x,y,sz,alpha,sw){
+        ctx.save(); ctx.globalAlpha=cl(alpha); ctx.translate(x,y);
+        ctx.transform(1,0,Math.sin(sw*0.65)*0.012,1,0,0); /* horizontal sway */
+        ctx.fillStyle=TR; ctx.fillRect(-sz*0.07,0,sz*0.14,sz*0.30);
+        [[sz*0.72, sz*0.02,-sz*0.50,GL],
+         [sz*0.60,-sz*0.42,-sz*0.80,G ],
+         [sz*0.44,-sz*0.74,-sz*1.05,GD]].forEach(function(L){
+          ctx.fillStyle=L[3]; ctx.beginPath();
+          ctx.moveTo(0,L[2]); ctx.lineTo(-L[0]/2,L[1]); ctx.lineTo(L[0]/2,L[1]);
+          ctx.closePath(); ctx.fill();
+        });
+        ctx.restore();
+      };
+
+      /* ── Draw: Big tree (4-layer) ── */
+      var drawBigTree = function(x,y,sz,alpha,sw){
+        ctx.save(); ctx.globalAlpha=cl(alpha); ctx.translate(x,y);
+        ctx.transform(1,0,Math.sin(sw*0.50)*0.009,1,0,0);
+        ctx.fillStyle=TR; ctx.fillRect(-sz*0.09,0,sz*0.18,sz*0.34);
+        [[sz*0.80, sz*0.02,-sz*0.42,GL],
+         [sz*0.72,-sz*0.36,-sz*0.74,GL],
+         [sz*0.60,-sz*0.68,-sz*1.07,G ],
+         [sz*0.46,-sz*1.01,-sz*1.38,GD]].forEach(function(L){
+          ctx.fillStyle=L[3]; ctx.beginPath();
+          ctx.moveTo(0,L[2]); ctx.lineTo(-L[0]/2,L[1]); ctx.lineTo(L[0]/2,L[1]);
+          ctx.closePath(); ctx.fill();
+        });
+        ctx.restore();
+      };
+
+      /* Sparkles pool (stage 3) */
+      var sparks=[];
+      for(var si=0;si<14;si++) sparks.push({x:20+Math.random()*260,y:15+Math.random()*170,ph:Math.random()*Math.PI*2,spd:0.6+Math.random()*0.8});
+
+      var start=performance.now(), el=0;
+
+      var frame = function(now){
+        el = now - start;
+        ctx.clearRect(0,0,W,H);
+        var sw = el/1000; /* sway timer (seconds) */
+
+        /* ── BRANCHES ── */
+        if (el < M.tPop+400) {
+          [[72,148,30,-0.25],[150,155,27,0.10],[228,146,29,0.35],[113,118,25,-0.10]].forEach(function(b,i){
+            var x=b[0],y=b[1],sz=b[2],ang=b[3],a=1,s=sw+i*0.65;
+            if (el < M.bGather){
+              x+=Math.sin(s*0.85+i)*3; y+=Math.cos(s*0.65+i)*2;
+            } else if (el < M.tPop){
+              var p=eIO(ph('bGather','tPop')); x=lerp(b[0],150,p); y=lerp(b[1],162,p); a=1-p;
+            } else return;
+            drawBranch(x,y,sz,ang,a,s);
+          });
+        }
+
+        /* ── CENTER TREE ── */
+        if (el >= M.tPop) {
+          var tsc=1, ta=1;
+          if (el<M.tPop+400){ var tp=cl((el-M.tPop)/400); tsc=bnc(tp); ta=eOut(tp); }
+          else if (maxStage>=1 && M.tGather!==undefined && el>=M.tGather){ var tg=eIO(ph('tGather','btPop')); ta=1-tg; }
+          if (ta>0.01){ ctx.save(); ctx.translate(150,162); ctx.scale(tsc,tsc); drawTree(0,0,60,ta,sw); ctx.restore(); }
+        }
+
+        /* ── SIDE TREES (gathering before big tree) ── */
+        if (maxStage>=1 && M.tSpawn!==undefined && el>=M.tSpawn && el<M.btPop+400) {
+          var sp=eOut(ph('tSpawn','tGather'));
+          [[62,164],[238,164]].forEach(function(s,i){
+            var x=s[0],y=s[1],a=sp,sc=sp;
+            if (M.tGather!==undefined && el>=M.tGather){
+              var p=eIO(ph('tGather','btPop')); x=lerp(s[0],150,p); y=lerp(s[1],162,p); a=1-p; sc=lerp(1,0.4,p);
+            }
+            if (a>0.01){ ctx.save(); ctx.translate(x,y); ctx.scale(sc,sc); drawTree(0,0,46,a,sw+i*0.9); ctx.restore(); }
+          });
+        }
+
+        /* ── BIG TREE ── */
+        if (maxStage>=1 && M.btPop!==undefined && el>=M.btPop) {
+          var bsc=1, ba=1;
+          if (el<M.btPop+400){ var bp=cl((el-M.btPop)/400); bsc=bnc(bp); ba=eOut(bp); }
+          else if (maxStage>=2 && M.btGather!==undefined && el>=M.btGather){ var bg=eIO(ph('btGather','fPop')); ba=1-bg; }
+          if (ba>0.01){ ctx.save(); ctx.translate(150,166); ctx.scale(bsc,bsc); drawBigTree(0,0,72,ba,sw); ctx.restore(); }
+        }
+
+        /* ── SIDE BIG TREES (gathering before forest) ── */
+        if (maxStage>=2 && M.btSpawn!==undefined && el>=M.btSpawn && el<M.fPop+400) {
+          var sp2=eOut(ph('btSpawn','btGather'));
+          [[56,168],[244,168]].forEach(function(s,i){
+            var x=s[0],y=s[1],a=sp2,sc=sp2;
+            if (M.btGather!==undefined && el>=M.btGather){
+              var p=eIO(ph('btGather','fPop')); x=lerp(s[0],150,p); y=lerp(s[1],166,p); a=1-p; sc=lerp(1,0.4,p);
+            }
+            if (a>0.01){ ctx.save(); ctx.translate(x,y); ctx.scale(sc,sc); drawBigTree(0,0,56,a,sw+i*0.7); ctx.restore(); }
+          });
+        }
+
+        /* ── FOREST ── */
+        if (maxStage>=2 && M.fPop!==undefined && el>=M.fPop) {
+          var fsc=1, fa=1;
+          if (el<M.fPop+400){ var fp2=cl((el-M.fPop)/400); fsc=bnc(fp2); fa=eOut(fp2); }
+          if (fa>0.01){
+            ctx.save(); ctx.translate(150,168); ctx.scale(fsc,fsc);
+            /* Draw back trees first, then front (z-order by size) */
+            [[-94,36,1.1],[96,36,0.8],[-48,50,0.9],[50,48,1.2],[0,62,1.0]].forEach(function(f){
+              drawTree(f[0],0,f[1],fa,sw*f[2]);
+            });
+            ctx.restore();
+          }
+          /* Sparkles (stage 3 / max score) */
+          if (maxStage===3 && el>M.fPop+500) {
+            sparks.forEach(function(sp){
+              var a=(Math.sin(el/380*sp.spd+sp.ph)+1)/2*0.50;
+              var r=2.5+Math.sin(el/290*sp.spd+sp.ph)*1.2;
+              ctx.save(); ctx.globalAlpha=a; ctx.fillStyle='#f0c43a'; ctx.beginPath();
+              for(var j=0;j<8;j++){
+                var ag=j*Math.PI/4, rv=j%2===0 ? r : r*0.38;
+                if(j===0) ctx.moveTo(sp.x+Math.cos(ag)*rv, sp.y+Math.sin(ag)*rv);
+                else ctx.lineTo(sp.x+Math.cos(ag)*rv, sp.y+Math.sin(ag)*rv);
+              }
+              ctx.closePath(); ctx.fill(); ctx.restore();
+            });
+          }
+        }
+
+        window._tAF = requestAnimationFrame(frame);
+      };
+
+      window._tAF = requestAnimationFrame(frame);
+    }
+
+    function nextQuestion() {
+      const q = cq(); if (!q) return;
+      // Tally addition-chunk scores for this question
+      q.chunks.slice(1).forEach((chunk, i) => {
+        const t = S.transcriptHistory[i + 1];
+        S.chunkTotal++;
+        if (t && chunkIsOk(t, chunk)) S.chunkOk++;
+      });
+      if (S.qIdx + 1 < S.queue.length) {
+        S.qIdx++; S.chunkIdx = 1; S.showAnswer = false;
+        S.transcript = ''; S.interim = ''; S.transcriptHistory = {};
+        S.micState = 'idle';
+        renderPractice();
+      } else {
+        const pct = S.chunkTotal > 0 ? Math.round(S.chunkOk / S.chunkTotal * 100) : 0;
+        const stats = loadStats();
+        stats.sessions = (stats.sessions || 0) + 1;
+        stats.totalQ = (stats.totalQ || 0) + S.queue.length;
+        stats.chunkOk = (stats.chunkOk || 0) + S.chunkOk;
+        stats.chunkTotal = (stats.chunkTotal || 0) + S.chunkTotal;
+        saveStats(stats);
+        // Update home mini-stats
+        g('stat-sessions').textContent = stats.sessions;
+        g('stat-total').textContent = stats.totalQ;
+        const lifePct = stats.chunkTotal > 0 ? Math.round(stats.chunkOk / stats.chunkTotal * 100) + '%' : '—';
+        g('stat-perfect').textContent = lifePct;
+        // Done screen
+        g('done-sub').textContent = `${S.queue.length}問 完了`;
+        g('done-score-pct').textContent = pct + '%';
+        g('done-score-detail').textContent = `${S.chunkOk} / ${S.chunkTotal} チャンク`;
+        killRec();
+        showScreen('done');
+        setTimeout(function(){ runTreeAnimation(pct); }, 50);
+      }
+    }
+
+    /* ── Keyboard ── */
+    document.addEventListener('keydown', e => {
+      if (!g('screen-practice').classList.contains('active')) return;
+      if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); if (!S.showAnswer) advance(); }
+    });
+
+    /* ── Init ── */
+    if (window.CHUNK_DATA) {
+      DATA = window.CHUNK_DATA;
+    } else {
+      document.body.innerHTML = '<div style="color:#f87171;padding:40px;font-size:18px;font-family:sans-serif">⚠️ data.js が読み込めませんでした。<br>chunking-dojo.html と同じフォルダに data.js があるか確認してください。</div>';
+    }
+    refreshHome();
+    maybeShowOnboarding();
+  </script>
+</body>
+
+</html>
