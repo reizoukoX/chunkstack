@@ -372,6 +372,12 @@
       background: rgba(97,143,30,.08)
     }
 
+    .filter-btn.sel {
+      background: var(--sb, #618f1e) !important;
+      color: #fff !important;
+      box-shadow: 0 4px 20px var(--sb, #618f1e) !important;
+    }
+
     .start-btn {
       width: 100%;
       padding: 16px;
@@ -1520,9 +1526,9 @@
 
     /* ── Filter Buttons ── */
     function styleBtn(el, active, color) {
-      el.style.background = active ? color : 'rgba(255,255,255,.08)';
-      el.style.color = active ? '#fff' : '#2e4c0c';
-      el.style.boxShadow = active ? `0 4px 20px ${color}66` : 'none';
+      if (!el) return;
+      el.style.setProperty('--sb', color);
+      el.classList.toggle('sel', !!active);
     }
     function setJeMode(v) {
       S.jeMode = v;
@@ -1917,10 +1923,13 @@
     // Unified OK check: uses structural validation for Wh-Questions, similarity for VocabDrop
     function chunkIsOk(transcript, chunk) {
       if (!transcript || !transcript.trim()) return false;
+      // まず chunk.en と照合（模範解答と一致すれば常にOK）
+      if (evaluateTranscript(transcript, chunk.en).ok === true) return true;
+      // Wh-Question: 構造的に正しい別解も許容
       if (chunk.promptType === 'Wh-Question' && chunk.prompt) {
         return evaluateWhQuestion(transcript, chunk.prompt);
       }
-      return evaluateTranscript(transcript, chunk.en).ok === true;
+      return false;
     }
 
     function evaluateTranscript(userText, expectedText) {
