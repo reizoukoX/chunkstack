@@ -1544,7 +1544,7 @@
       styleBtn(g('btn-voice'), m === 'voice', '#618f1e');
       styleBtn(g('btn-tap'), m === 'tap', '#618f1e');
       if (!HAS_SPEECH) { g('btn-voice').style.opacity = '.4'; g('btn-voice').disabled = true; }
-      g('mode-hint').style.display = 'none';
+      const _mh = g('mode-hint'); if (_mh) _mh.style.display = 'none';
     }
     function setLevel(lv) {
       S.filterLevel = lv;
