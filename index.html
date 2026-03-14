@@ -1054,8 +1054,8 @@
         <div style="width:100%;margin-bottom:24px">
           <div class="section-label">出題スタイル</div>
           <div class="filter-row">
-            <button class="filter-btn" id="btn-hint" onclick="setJeMode(false)">英・日でヒント</button>
-            <button class="filter-btn" id="btn-je" onclick="setJeMode(true)">日本語のみ</button>
+            <button class="filter-btn" id="btn-je" onclick="setJeMode(true)">日本語</button>
+            <button class="filter-btn" id="btn-hint" onclick="setJeMode(false)">英語＋日本語</button>
           </div>
           <div class="mode-hint" id="je-hint"></div>
         </div>
@@ -1178,7 +1178,7 @@
     const _initPrefs = (function(){ try { return JSON.parse(localStorage.getItem('cd-prefs')||'{}'); } catch(e){ return {}; } })();
     let S = {
       mode: HAS_SPEECH ? 'voice' : 'tap',
-      jeMode: _initPrefs.jeMode !== undefined ? _initPrefs.jeMode : false,
+      jeMode: _initPrefs.jeMode !== undefined ? _initPrefs.jeMode : true,
       filterLevel: 'level' in _initPrefs ? _initPrefs.level : 1,
       qCount: _initPrefs.qCount || 5,
       queue: [],
@@ -1529,7 +1529,7 @@
       styleBtn(g('btn-hint'), !v, '#618f1e');
       styleBtn(g('btn-je'), v, '#c8b850');
       const hint = g('je-hint');
-      if (hint) hint.textContent = v ? '🇯🇵 日本語を見て英語チャンクを話す翻訳練習モード' : '';
+      if (hint) hint.textContent = v ? '🇯🇵 日本語→英語のサイトトランスレーション練習モード' : '🌐 英語プロンプト＋日本語ヒントで練習するモード';
       savePrefs({ jeMode: v });
     }
     function setMode(m) {
@@ -1609,7 +1609,9 @@
         }
         const card = document.createElement('div'); card.className = 'chunk-card ' + (isCore ? 'core' : 'extra');
         if (isCore) {
-          card.innerHTML = `<div class="core-label">Core Sentence</div><div class="core-en">${esc(c.en)}</div>`;
+          // コアは常に日本語を表示 → どちらのモードでも日→英サイトトランスレーション
+          const coreDisplay = c.ja || c.en;
+          card.innerHTML = `<div class="core-label">Core Sentence</div><div class="core-en">${esc(coreDisplay)}</div>`;
         } else {
           // J→E mode: show Japanese; hint mode: show English prompt
           const mainText = S.jeMode
