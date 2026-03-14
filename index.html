@@ -1285,6 +1285,7 @@
       const chunks = [
         { type: "core", ja: core.ja, en: core.en, hint: "S+V", tags: coreTags }
       ];
+      let previousCat = "core"; // allowedAfter 追跡用
 
       // Semantic meta-tags: excluded from topic matching, used for cross-slot mutual exclusion
       const TEMPORAL_TAGS = ["past", "pres", "habitual", "fut", "hypo"];
@@ -1320,6 +1321,8 @@
         // Person filter: if core subject is third-person, exclude first-person additions
         const coreIsFirstPerson = /\bI\b|\bmy\b|\bme\b|\bwe\b|\bour\b|\bmyself\b/i.test(core.en);
         const semanticPool = options.filter(opt => {
+          // allowedAfter: このチャンクの前に来るカテゴリを制限
+          if (opt.allowedAfter && !opt.allowedAfter.includes(previousCat)) return false;
           const optTags = opt.tags || [];
           // Block first-person additions on third-person cores (e.g. "by myself" after "She is kind")
           if (!coreIsFirstPerson && /\bI\b|\bmy\b|\bme\b|\bmyself\b/i.test(opt.en)) return false;
@@ -1389,6 +1392,7 @@
           if (choice.tags.includes('recurring')) chosenSemanticTags.add('recurring');
         }
 
+        previousCat = cat; // 次スロット用に更新
         chunks.push({
           type: cat,
           ja: choice.ja,
