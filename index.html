@@ -1533,7 +1533,7 @@
     function setJeMode(v) {
       S.jeMode = v;
       styleBtn(g('btn-hint'), !v, '#618f1e');
-      styleBtn(g('btn-je'), v, '#c8b850');
+      styleBtn(g('btn-je'), v, '#618f1e');
       const hint = g('je-hint');
       if (hint) hint.textContent = v ? '🇯🇵 日本語→英語のサイトトランスレーション練習モード' : '🌐 英語プロンプト＋日本語ヒントで練習するモード';
       savePrefs({ jeMode: v });
@@ -1550,8 +1550,7 @@
       S.filterLevel = lv;
       ['all', '1', '2', '3'].forEach(k => {
         const match = (k === 'all' && lv === null) || String(k) === String(lv);
-        const col = lv !== null && k !== 'all' ? LEVEL_COLORS[Number(k)] : '#618f1e';
-        styleBtn(g('flv-' + k), match, col);
+        styleBtn(g('flv-' + k), match, '#618f1e');
       });
       savePrefs({ level: lv });
     }
