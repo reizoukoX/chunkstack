@@ -1697,6 +1697,10 @@
         }, 350);
       } else {
         S.showAnswer = true;
+        // マイクを確実に止める → Android で TTS と競合しないように
+        recWanted = false;
+        const _lastRec = rec; rec = null;
+        try { if (_lastRec) _lastRec.abort(); } catch (_) {}
         const _aiFbSentence = getAssembledSentence(q);
         renderPractice();
         setTimeout(() => playNativeAudio(_aiFbSentence), 600);
@@ -2132,8 +2136,9 @@
         }
         if (interim) { S.interim = interim; renderVoiceUI(); }
         if (final) {
-          // Android は長い発話を複数の isFinal に分割して送る → 結合して貯める
-          S.transcript = (S.transcript ? S.transcript.trim() + ' ' : '') + final.trim();
+          // Android は同じ resultIndex を累積テキストで上書きして送る → 常に最新で上書き
+          // 750ms タイマーで本当の最終結果を待つ
+          S.transcript = final.trim();
           S.interim = ''; setMicState('heard');
           // 新しい final が来るたびにタイマーをリセット → 本当に無音になってから advance
           clearTimeout(advanceTimer);
